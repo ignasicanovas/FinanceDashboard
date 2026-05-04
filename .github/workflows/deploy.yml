@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: CI / Deploy to Cloud Run
 
 on:
   push:
@@ -14,8 +14,9 @@ env:
   FRONTEND_URL: https://finanzas-frontend-zwaapqlglq-ew.a.run.app
 
 jobs:
+  # ── 1. Type-check ──────────────────────────────────────────────────────────
   lint:
-    name: Type-check frontend
+    name: TypeScript check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,17 +31,67 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: TypeScript check
+      - name: tsc --noEmit
         run: npx tsc --noEmit
         working-directory: frontend
 
+  # ── 2. Frontend tests (Vitest) ─────────────────────────────────────────────
+  test-frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run Vitest
+        run: npm test
+        working-directory: frontend
+
+  # ── 3. Backend tests (pytest) ──────────────────────────────────────────────
+  test-backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+        working-directory: backend
+
+      - name: Run pytest
+        run: pytest tests/ -v
+        working-directory: backend
+        env:
+          LOCAL_ONLY: 'true'
+          SECRET_KEY: ci-test-secret-not-for-production
+          GCS_BUCKET: test-bucket
+          DB_BLOB: test.db
+          DB_LOCAL_CACHE_DIR: /tmp
+          APP_ENV: development
+
+  # ── 4. Deploy ──────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to GCP
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, test-frontend, test-backend]
     permissions:
       contents: read
-      id-token: write  # requerido para Workload Identity Federation
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +145,7 @@ jobs:
             --max-instances 5 \
             --quiet
 
-      - name: Summary
+      - name: Job summary
         run: |
           echo "### Despliegue completado :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -102,3 +153,52 @@ jobs:
           echo "|----------|-----|" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend | $FRONTEND_URL |" >> $GITHUB_STEP_SUMMARY
           echo "| Backend  | $BACKEND_URL |" >> $GITHUB_STEP_SUMMARY
+
+  # ── 5. Notificación por email ──────────────────────────────────────────────
+  notify:
+    name: Notify by email
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    steps:
+      - name: Send success email
+        if: needs.deploy.result == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ignasicanovas@gmail.com
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "✅ NanisFinance desplegado — ${{ github.sha && 'OK' }}"
+          to: ignasicanovas@gmail.com
+          from: NanisFinance CI <ignasicanovas@gmail.com>
+          html_body: |
+            <h2>✅ Despliegue completado</h2>
+            <p><strong>Commit:</strong> <code>${{ github.sha }}</code></p>
+            <p><strong>Autor:</strong> ${{ github.actor }}</p>
+            <p><strong>Mensaje:</strong> ${{ github.event.head_commit.message }}</p>
+            <hr>
+            <p>
+              🌐 <a href="${{ env.FRONTEND_URL }}">Frontend</a><br>
+              🔧 <a href="${{ env.BACKEND_URL }}">Backend</a>
+            </p>
+            <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">Ver ejecución</a></p>
+
+      - name: Send failure email
+        if: needs.deploy.result != 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ignasicanovas@gmail.com
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "❌ NanisFinance — fallo en el pipeline"
+          to: ignasicanovas@gmail.com
+          from: NanisFinance CI <ignasicanovas@gmail.com>
+          html_body: |
+            <h2>❌ El pipeline ha fallado</h2>
+            <p><strong>Commit:</strong> <code>${{ github.sha }}</code></p>
+            <p><strong>Autor:</strong> ${{ github.actor }}</p>
+            <p><strong>Mensaje:</strong> ${{ github.event.head_commit.message }}</p>
+            <hr>
+            <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">Ver logs del fallo</a></p>
