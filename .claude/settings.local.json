@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"c:\\\\\\\\Users\\\\\\\\ignasi.canovas\\\\\\\\Desktop\\\\\\\\Projects\\\\\\\\finanzas-n26\" -type f -not -path \"*/.git/*\" -not -path \"*/__pycache__/*\" -not -path \"*/venv/*\")",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(bash deploy.sh finance-tracker-489508)",
+      "Bash(python -c ' *)",
+      "Bash(taskkill /F /IM uvicorn.exe)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(find \"c:\\\\Users\\\\ignasi.canovas\\\\Desktop\\\\Projects\\\\FinanceDashboard\\\\backend\" -name \"*.pyc\" -delete)",
+      "Bash(gcloud config *)"
+    ]
+  }
+}
