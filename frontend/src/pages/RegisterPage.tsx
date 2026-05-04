@@ -43,7 +43,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="text-4xl mb-2">💰</div>
+          <div className="text-4xl mb-2">🏦</div>
           <CardTitle>Crear cuenta</CardTitle>
           <CardDescription>Empieza a gestionar tus finanzas</CardDescription>
         </CardHeader>

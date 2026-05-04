@@ -49,7 +49,7 @@ export default function AppShell({ children, title }: AppShellProps) {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-blue-600">💰 Finanzas</span>
+            <span className="text-xl font-bold text-blue-600">🏦 NanisFinance</span>
           </Link>
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X className="w-5 h-5 text-gray-500" />
