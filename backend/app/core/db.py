@@ -1,6 +1,5 @@
 """
 db.py — Capa de acceso a datos (SQLite + Cloud Storage).
-Adaptado de finanzas-n26/dashboard/db.py — sin dependencias de Streamlit.
 Caché de conexiones con threading.Lock; todas las funciones reciben conn explícito.
 """
 import sqlite3
@@ -206,9 +205,6 @@ def _init_account_db(conn: sqlite3.Connection):
         )
     """)
 
-    # Migraciones incrementales
-    _run_incremental_migrations(conn)
-
     # Datos por defecto
     if conn.execute("SELECT COUNT(*) FROM supercategories").fetchone()[0] == 0:
         for s in SUPERCATEGORIAS + [NO_COMPUTABLE]:
@@ -241,52 +237,6 @@ def _init_account_db(conn: sqlite3.Connection):
             )
 
     conn.commit()
-
-
-def _run_incremental_migrations(conn: sqlite3.Connection):
-    """Añade columnas nuevas si no existen (idempotente)."""
-    migrations = [
-        ("ALTER TABLE categories ADD COLUMN supercategoria TEXT DEFAULT 'Otros'",),
-        ("ALTER TABLE accounts ADD COLUMN owner_user_id INTEGER DEFAULT NULL",),
-        ("ALTER TABLE accounts ADD COLUMN is_shared INTEGER DEFAULT 0",),
-        ("ALTER TABLE transactions ADD COLUMN compensacion_de TEXT DEFAULT NULL",),
-        ("ALTER TABLE transactions ADD COLUMN desde_ahorro INTEGER DEFAULT 0",),
-        ("ALTER TABLE transactions ADD COLUMN compensacion_tipo TEXT DEFAULT NULL",),
-        ("ALTER TABLE kpi_config ADD COLUMN compensacion_filtro TEXT DEFAULT NULL",),
-        ("ALTER TABLE kpi_config ADD COLUMN kpis_ref TEXT DEFAULT ''",),
-    ]
-    for (sql,) in migrations:
-        try:
-            conn.execute(sql)
-            conn.commit()
-        except sqlite3.OperationalError:
-            pass  # Columna ya existe
-
-    # Limpiar compensacion_tipo='ahorro' en gastos (importe < 0) — datos sucios del CompensationDialog antiguo
-    try:
-        conn.execute("""
-            UPDATE transactions SET compensacion_tipo = NULL
-            WHERE importe < 0 AND compensacion_tipo = 'ahorro'
-        """)
-        conn.commit()
-    except Exception:
-        pass
-
-    # Deduplicar categories y forzar unicidad en nombre
-    # (necesario si la tabla fue creada sin PRIMARY KEY en versiones antiguas)
-    try:
-        conn.execute("""
-            DELETE FROM categories WHERE rowid NOT IN (
-                SELECT MIN(rowid) FROM categories GROUP BY nombre
-            )
-        """)
-        conn.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_nombre ON categories(nombre)"
-        )
-        conn.commit()
-    except Exception:
-        pass
-
 
 # ── TRANSACTIONS ──────────────────────────────────────────────
 

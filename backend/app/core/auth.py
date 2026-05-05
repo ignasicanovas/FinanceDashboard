@@ -1,6 +1,5 @@
 """
 auth.py — Autenticación de usuarios con bcrypt + JWT.
-Adaptado de finanzas-n26/dashboard/auth.py — sin dependencias de Streamlit.
 """
 import sqlite3
 from datetime import datetime, timedelta

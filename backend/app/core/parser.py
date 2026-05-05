@@ -1,7 +1,6 @@
 """
 parser.py — Multi-banco parser: N26, Santander, etc.
 Parsea CSVs/Excel de diferentes bancos y normaliza a un schema uniforme.
-Adaptado de finanzas-n26/dashboard/parser.py — sin dependencias de Streamlit.
 """
 import hashlib
 import pandas as pd

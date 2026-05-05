@@ -1,6 +1,5 @@
 """
 permissions.py — Control de acceso y autorización.
-Adaptado de finanzas-n26/dashboard/permissions.py — sin dependencias de Streamlit.
 Todas las funciones reciben conn explícito.
 """
 import sqlite3
