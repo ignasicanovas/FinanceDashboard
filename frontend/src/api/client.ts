@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '@/store/authStore'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -16,12 +17,12 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// Handle 401 — clear token and redirect to login
+// Handle 401 — clear full auth state (token + Zustand store) and redirect to login
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token')
+      useAuthStore.getState().logout()
       window.location.href = '/login'
     }
     return Promise.reject(error)
