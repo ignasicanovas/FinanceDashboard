@@ -10,6 +10,7 @@ class CategoryCreate(BaseModel):
 
 
 class CategoryUpdate(BaseModel):
+    nombre: Optional[str] = None
     color: Optional[str] = None
     emoji: Optional[str] = None
     supercategoria: Optional[str] = None
@@ -24,6 +25,10 @@ class CategoryOut(BaseModel):
 
 
 class AreaCreate(BaseModel):
+    nombre: str
+
+
+class AreaUpdate(BaseModel):
     nombre: str
 
 

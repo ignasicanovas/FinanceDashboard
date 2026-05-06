@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   useCategories, useAreas, useCreateCategory, useUpdateCategory,
-  useDeleteCategory, useCreateArea, useDeleteArea,
+  useDeleteCategory, useCreateArea, useDeleteArea, useRenameArea,
 } from '@/hooks/useCategories'
 import type { Category } from '@/types'
 
@@ -20,6 +20,8 @@ interface CategoriesPanelProps {
 }
 
 const DEFAULT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6']
+const PROTECTED_AREAS = ['No computable', 'Otros']
+const PROTECTED_CATS = ['No computable', 'Otros']
 
 export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
   const { data: categories = [] } = useCategories(accountId)
@@ -30,15 +32,35 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
   const [newArea, setNewArea] = useState('')
   const [catForm, setCatForm] = useState({ nombre: '', color: '#6366f1', emoji: '🏷️', supercategoria: 'Otros' })
 
+  // Inline area rename state
+  const [editingArea, setEditingArea] = useState<string | null>(null)
+  const [editingAreaValue, setEditingAreaValue] = useState('')
+  const areaInputRef = useRef<HTMLInputElement>(null)
+
+  // Delete-with-migration dialog state
+  const [deletingCat, setDeletingCat] = useState<string | null>(null)
+  const [migrateTo, setMigrateTo] = useState<string>('')
+
   const createCategory = useCreateCategory(accountId)
   const updateCategory = useUpdateCategory(accountId)
   const deleteCategory = useDeleteCategory(accountId)
   const createArea = useCreateArea(accountId)
   const deleteArea = useDeleteArea(accountId)
+  const renameArea = useRenameArea(accountId)
+
+  useEffect(() => {
+    if (editingArea && areaInputRef.current) {
+      areaInputRef.current.focus()
+      areaInputRef.current.select()
+    }
+  }, [editingArea])
 
   const filteredCats = selectedArea
     ? categories.filter((c) => c.supercategoria === selectedArea)
     : categories
+
+  const otherCats = (nombre: string) =>
+    categories.filter((c) => c.nombre !== nombre && !PROTECTED_CATS.includes(c.nombre))
 
   const openEdit = (cat: Category) => {
     setEditingCat(cat)
@@ -49,7 +71,12 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
     if (editingCat) {
       await updateCategory.mutateAsync({
         nombre: editingCat.nombre,
-        data: { color: catForm.color, emoji: catForm.emoji, supercategoria: catForm.supercategoria },
+        data: {
+          nombre: catForm.nombre !== editingCat.nombre ? catForm.nombre : undefined,
+          color: catForm.color,
+          emoji: catForm.emoji,
+          supercategoria: catForm.supercategoria,
+        },
       })
       toast.success('Categoría actualizada')
     } else {
@@ -60,14 +87,25 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
     setShowNewCat(false)
   }
 
-  const handleDeleteCat = async (nombre: string) => {
-    if (!confirm(`¿Eliminar la categoría "${nombre}"?`)) return
+  const openDeleteCat = (nombre: string) => {
+    const available = otherCats(nombre)
+    setMigrateTo(available[0]?.nombre ?? '')
+    setDeletingCat(nombre)
+  }
+
+  const handleConfirmDelete = async (withMigration: boolean) => {
+    if (!deletingCat) return
     try {
-      await deleteCategory.mutateAsync(nombre)
-      toast.success('Categoría eliminada')
+      await deleteCategory.mutateAsync({
+        nombre: deletingCat,
+        migrateTo: withMigration && migrateTo ? migrateTo : undefined,
+      })
+      toast.success(withMigration ? 'Categoría eliminada y transacciones migradas' : 'Categoría eliminada')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Error al eliminar'
       toast.error(msg)
+    } finally {
+      setDeletingCat(null)
     }
   }
 
@@ -76,6 +114,31 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
     await createArea.mutateAsync(newArea.trim())
     setNewArea('')
     toast.success('Área creada')
+  }
+
+  const startEditArea = (area: string) => {
+    setEditingArea(area)
+    setEditingAreaValue(area)
+  }
+
+  const cancelEditArea = () => {
+    setEditingArea(null)
+    setEditingAreaValue('')
+  }
+
+  const handleSaveArea = async () => {
+    if (!editingArea || !editingAreaValue.trim() || editingAreaValue.trim() === editingArea) {
+      cancelEditArea()
+      return
+    }
+    try {
+      await renameArea.mutateAsync({ oldNombre: editingArea, newNombre: editingAreaValue.trim() })
+      if (selectedArea === editingArea) setSelectedArea(editingAreaValue.trim())
+      toast.success('Área renombrada')
+    } catch {
+      toast.error('Error al renombrar el área')
+    }
+    cancelEditArea()
   }
 
   const handleDeleteArea = async (nombre: string) => {
@@ -99,17 +162,53 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
             Todas las categorías
           </button>
           {areas.map((area) => (
-            <div key={area} className={`flex items-center rounded-lg ${selectedArea === area ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-              <button
-                onClick={() => setSelectedArea(area)}
-                className={`flex-1 text-left px-3 py-2 text-sm ${selectedArea === area ? 'text-blue-700 font-medium' : ''}`}
-              >
-                {area}
-              </button>
-              {!['No computable', 'Otros'].includes(area) && (
-                <button onClick={() => handleDeleteArea(area)} className="px-2 text-gray-400 hover:text-red-500">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+            <div key={area} className={`group flex items-center rounded-lg ${selectedArea === area ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+              {editingArea === area ? (
+                <div className="flex items-center flex-1 px-1 gap-1">
+                  <input
+                    ref={areaInputRef}
+                    value={editingAreaValue}
+                    onChange={(e) => setEditingAreaValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveArea()
+                      if (e.key === 'Escape') cancelEditArea()
+                    }}
+                    className="flex-1 text-sm px-2 py-1 rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                  />
+                  <button onClick={handleSaveArea} className="p-1 text-green-600 hover:text-green-700">
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={cancelEditArea} className="p-1 text-gray-400 hover:text-gray-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setSelectedArea(area)}
+                    className={`flex-1 text-left px-3 py-2 text-sm ${selectedArea === area ? 'text-blue-700 font-medium' : ''}`}
+                  >
+                    {area}
+                  </button>
+                  {!PROTECTED_AREAS.includes(area) && (
+                    <div className="flex opacity-0 group-hover:opacity-100 transition-opacity pr-1 gap-0.5">
+                      <button
+                        onClick={() => startEditArea(area)}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                        title="Renombrar área"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteArea(area)}
+                        className="p-1 text-gray-400 hover:text-red-500"
+                        title="Eliminar área"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -164,8 +263,8 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
                 <button onClick={() => openEdit(cat)} className="p-1 text-gray-400 hover:text-blue-600">
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
-                {!['No computable', 'Otros'].includes(cat.nombre) && (
-                  <button onClick={() => handleDeleteCat(cat.nombre)} className="p-1 text-gray-400 hover:text-red-500">
+                {!PROTECTED_CATS.includes(cat.nombre) && (
+                  <button onClick={() => openDeleteCat(cat.nombre)} className="p-1 text-gray-400 hover:text-red-500">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -182,18 +281,21 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
             <DialogTitle>{editingCat ? 'Editar categoría' : 'Nueva categoría'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {!editingCat && (
-              <div className="flex gap-2">
-                <div className="w-20">
-                  <Label>Emoji</Label>
-                  <Input value={catForm.emoji} onChange={(e) => setCatForm({ ...catForm, emoji: e.target.value })} className="text-center text-xl" />
-                </div>
-                <div className="flex-1">
-                  <Label>Nombre</Label>
-                  <Input value={catForm.nombre} onChange={(e) => setCatForm({ ...catForm, nombre: e.target.value })} placeholder="Ej: Supermercado" />
-                </div>
+            <div className="flex gap-2">
+              <div className="w-20">
+                <Label>Emoji</Label>
+                <Input value={catForm.emoji} onChange={(e) => setCatForm({ ...catForm, emoji: e.target.value })} className="text-center text-xl" />
               </div>
-            )}
+              <div className="flex-1">
+                <Label>Nombre</Label>
+                <Input
+                  value={catForm.nombre}
+                  onChange={(e) => setCatForm({ ...catForm, nombre: e.target.value })}
+                  placeholder="Ej: Supermercado"
+                  disabled={!!editingCat && PROTECTED_CATS.includes(editingCat.nombre)}
+                />
+              </div>
+            </div>
             <div>
               <Label>Color</Label>
               <div className="flex gap-2 mt-1 flex-wrap">
@@ -227,6 +329,51 @@ export default function CategoriesPanel({ accountId }: CategoriesPanelProps) {
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => { setShowNewCat(false); setEditingCat(null) }}>Cancelar</Button>
               <Button className="flex-1" onClick={handleSaveCategory}>Guardar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete-with-migration dialog */}
+      <Dialog open={!!deletingCat} onOpenChange={(o) => { if (!o) setDeletingCat(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar categoría</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              ¿Eliminar <span className="font-semibold">"{deletingCat}"</span>?
+              Las transacciones con esta categoría quedarán sin categorizar, o puedes migrarlas a otra.
+            </p>
+            {otherCats(deletingCat ?? '').length > 0 && (
+              <div>
+                <Label>Migrar transacciones a</Label>
+                <Select value={migrateTo} onValueChange={setMigrateTo}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Seleccionar categoría..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {otherCats(deletingCat ?? '').map((c) => (
+                      <SelectItem key={c.nombre} value={c.nombre}>
+                        {c.emoji} {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setDeletingCat(null)}>
+                Cancelar
+              </Button>
+              <Button variant="outline" className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300" onClick={() => handleConfirmDelete(false)}>
+                Solo eliminar
+              </Button>
+              {otherCats(deletingCat ?? '').length > 0 && migrateTo && (
+                <Button className="flex-1" onClick={() => handleConfirmDelete(true)}>
+                  Migrar y eliminar
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>

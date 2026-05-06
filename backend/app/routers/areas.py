@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.core import db as db_module
 from app.deps import AccountConn, EditorConn
-from app.schemas.category import AreaCreate
+from app.schemas.category import AreaCreate, AreaUpdate
 
 router = APIRouter()
 
@@ -18,6 +18,19 @@ def create_area(body: AreaCreate, account_conn: EditorConn):
     conn, account, _ = account_conn
     db_module.create_area(conn, account["db_blob"], body.nombre)
     return {"nombre": body.nombre.strip()}
+
+
+@router.put("/{account_id}/areas/{nombre}")
+def rename_area(nombre: str, body: AreaUpdate, account_conn: EditorConn):
+    protected = {"No computable", "Otros"}
+    if nombre in protected:
+        raise HTTPException(status_code=400, detail=f"'{nombre}' es un área protegida")
+    new_nombre = body.nombre.strip()
+    if not new_nombre:
+        raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+    conn, account, _ = account_conn
+    db_module.rename_area(conn, account["db_blob"], nombre, new_nombre)
+    return {"nombre": new_nombre}
 
 
 @router.delete("/{account_id}/areas/{nombre}", status_code=status.HTTP_204_NO_CONTENT)

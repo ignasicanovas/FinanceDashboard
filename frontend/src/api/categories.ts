@@ -11,8 +11,10 @@ export const categoriesApi = {
   update: (accountId: number, nombre: string, data: Partial<Category>) =>
     apiClient.put<Category>(`/api/accounts/${accountId}/categories/${encodeURIComponent(nombre)}`, data).then((r) => r.data),
 
-  delete: (accountId: number, nombre: string) =>
-    apiClient.delete(`/api/accounts/${accountId}/categories/${encodeURIComponent(nombre)}`),
+  delete: (accountId: number, nombre: string, migrateTo?: string) =>
+    apiClient.delete(
+      `/api/accounts/${accountId}/categories/${encodeURIComponent(nombre)}${migrateTo ? `?migrate_to=${encodeURIComponent(migrateTo)}` : ''}`
+    ),
 }
 
 export const areasApi = {
@@ -21,6 +23,9 @@ export const areasApi = {
 
   create: (accountId: number, nombre: string) =>
     apiClient.post(`/api/accounts/${accountId}/areas`, { nombre }),
+
+  rename: (accountId: number, oldNombre: string, newNombre: string) =>
+    apiClient.put(`/api/accounts/${accountId}/areas/${encodeURIComponent(oldNombre)}`, { nombre: newNombre }),
 
   delete: (accountId: number, nombre: string) =>
     apiClient.delete(`/api/accounts/${accountId}/areas/${encodeURIComponent(nombre)}`),
