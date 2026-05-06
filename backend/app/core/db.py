@@ -435,6 +435,30 @@ def delete_category(conn: sqlite3.Connection, blob_name: str, nombre: str):
     _upload_db(blob_name)
 
 
+def rename_category(conn: sqlite3.Connection, blob_name: str, old_nombre: str, new_nombre: str):
+    row = conn.execute("SELECT * FROM categories WHERE nombre = ?", (old_nombre,)).fetchone()
+    if not row:
+        return
+    cat = dict(row)
+    conn.execute(
+        "INSERT OR IGNORE INTO categories (nombre, color, emoji, supercategoria, created_at) VALUES (?,?,?,?,?)",
+        (new_nombre, cat["color"], cat["emoji"], cat["supercategoria"], cat["created_at"])
+    )
+    conn.execute("UPDATE transactions SET categoria = ? WHERE categoria = ?", (new_nombre, old_nombre))
+    conn.execute("UPDATE rules SET categoria = ? WHERE categoria = ?", (new_nombre, old_nombre))
+    conn.execute("DELETE FROM categories WHERE nombre = ?", (old_nombre,))
+    conn.commit()
+    _upload_db(blob_name)
+
+
+def delete_category_with_migration(conn: sqlite3.Connection, blob_name: str, nombre: str, migrate_to: str):
+    conn.execute("UPDATE transactions SET categoria = ? WHERE categoria = ?", (migrate_to, nombre))
+    conn.execute("UPDATE rules SET categoria = ? WHERE categoria = ?", (migrate_to, nombre))
+    conn.execute("DELETE FROM categories WHERE nombre = ?", (nombre,))
+    conn.commit()
+    _upload_db(blob_name)
+
+
 # ── AREAS (supercategories) ───────────────────────────────────
 
 def get_areas(conn: sqlite3.Connection) -> list[str]:
@@ -447,6 +471,20 @@ def create_area(conn: sqlite3.Connection, blob_name: str, nombre: str):
         "INSERT OR IGNORE INTO supercategories (nombre, created_at) VALUES (?,?)",
         (nombre.strip(), datetime.now().isoformat())
     )
+    conn.commit()
+    _upload_db(blob_name)
+
+
+def rename_area(conn: sqlite3.Connection, blob_name: str, old_nombre: str, new_nombre: str):
+    conn.execute("UPDATE supercategories SET nombre = ? WHERE nombre = ?", (new_nombre, old_nombre))
+    conn.execute("UPDATE categories SET supercategoria = ? WHERE supercategoria = ?", (new_nombre, old_nombre))
+    rows = conn.execute("SELECT id, areas FROM kpi_config").fetchall()
+    for row in rows:
+        kpi_id, areas_csv = row[0], row[1] or ""
+        areas_list = [a.strip() for a in areas_csv.split(",") if a.strip()]
+        if old_nombre in areas_list:
+            new_list = [new_nombre if a == old_nombre else a for a in areas_list]
+            conn.execute("UPDATE kpi_config SET areas = ? WHERE id = ?", (",".join(new_list), kpi_id))
     conn.commit()
     _upload_db(blob_name)
 

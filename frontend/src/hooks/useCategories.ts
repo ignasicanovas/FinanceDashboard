@@ -31,8 +31,21 @@ export const useUpdateCategory = (accountId: number) => {
 export const useDeleteCategory = (accountId: number) => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (nombre: string) => categoriesApi.delete(accountId, nombre),
+    mutationFn: ({ nombre, migrateTo }: { nombre: string; migrateTo?: string }) =>
+      categoriesApi.delete(accountId, nombre, migrateTo),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['categories', accountId] }),
+  })
+}
+
+export const useRenameArea = (accountId: number) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ oldNombre, newNombre }: { oldNombre: string; newNombre: string }) =>
+      areasApi.rename(accountId, oldNombre, newNombre),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['areas', accountId] })
+      qc.invalidateQueries({ queryKey: ['categories', accountId] })
+    },
   })
 }
 
