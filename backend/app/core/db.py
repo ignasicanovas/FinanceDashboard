@@ -18,6 +18,10 @@ LOCAL_ONLY = os.environ.get("LOCAL_ONLY", "").lower() in ("1", "true", "yes")
 SUPERCATEGORIAS = ["Necesidades", "Ocio", "Hogar", "Salud", "Finanzas", "Trabajo", "Otros"]
 NO_COMPUTABLE = "No computable"
 
+# Fecha efectiva de cómputo: si diferir_mes=1, se desplaza al mes siguiente
+_FECHA_EF = "CASE WHEN t.diferir_mes = 1 THEN date(t.fecha, '+1 month') ELSE t.fecha END"
+_FECHA_EF_RAW = "CASE WHEN diferir_mes = 1 THEN date(fecha, '+1 month') ELSE fecha END"
+
 # ── Connection cache ──────────────────────────────────────────
 _conn_cache: dict[str, sqlite3.Connection] = {}
 _conn_lock = threading.Lock()
@@ -118,7 +122,8 @@ def _init_account_db(conn: sqlite3.Connection):
             created_at TEXT,
             compensacion_de TEXT DEFAULT NULL,
             compensacion_tipo TEXT DEFAULT NULL,
-            desde_ahorro INTEGER DEFAULT 0
+            desde_ahorro INTEGER DEFAULT 0,
+            diferir_mes INTEGER DEFAULT 0
         )
     """)
     conn.execute("""
@@ -222,6 +227,13 @@ def _init_account_db(conn: sqlite3.Connection):
         ("Otros", "#9ca3af", "🏷️", "Otros")
     )
 
+    # Migración: añadir columna diferir_mes a DBs existentes
+    try:
+        conn.execute("ALTER TABLE transactions ADD COLUMN diferir_mes INTEGER DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # columna ya existe
+
     if conn.execute("SELECT COUNT(*) FROM kpi_config").fetchone()[0] == 0:
         default_kpis = [
             ("Gastos corrientes", "🛒", "gasto", 1, "Gastos corrientes", None),
@@ -322,7 +334,7 @@ def get_transaction_by_id(conn: sqlite3.Connection, txn_id: str) -> Optional[dic
 
 def update_transaction(conn: sqlite3.Connection, txn_id: str, blob_name: str, **fields) -> bool:
     """Actualiza campos de una transacción y sube la DB a GCS."""
-    allowed = {"categoria", "compensacion_de", "compensacion_tipo", "desde_ahorro"}
+    allowed = {"categoria", "compensacion_de", "compensacion_tipo", "desde_ahorro", "diferir_mes"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return False
@@ -702,8 +714,8 @@ def get_account_stats(conn: sqlite3.Connection) -> dict:
     """Stats rápidos para la tarjeta de cuenta en el dashboard."""
     import pandas as pd
     try:
-        monthly = pd.read_sql_query("""
-            SELECT strftime('%Y-%m', fecha) as mes,
+        monthly = pd.read_sql_query(f"""
+            SELECT strftime('%Y-%m', {_FECHA_EF_RAW}) as mes,
                    SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos,
                    SUM(CASE WHEN importe < 0 THEN ABS(importe) ELSE 0 END) as gastos
             FROM transactions
@@ -858,16 +870,16 @@ def get_monthly_summary(conn: sqlite3.Connection,
     where = "WHERE (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
     params: list = []
     if fecha_desde:
-        where += " AND t.fecha >= ?"
+        where += f" AND {_FECHA_EF} >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        where += " AND t.fecha <= ?"
+        where += f" AND {_FECHA_EF} <= ?"
         params.append(fecha_hasta)
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
     df = pd.read_sql_query(f"""
-        SELECT strftime('%Y-%m', t.fecha) as mes,
+        SELECT strftime('%Y-%m', {_FECHA_EF}) as mes,
                SUM(CASE WHEN t.importe > 0 AND (t.compensacion_tipo IS NULL OR (t.compensacion_tipo != 'ahorro' AND t.compensacion_tipo != 'reembolso')) THEN t.importe ELSE 0 END) as ingresos,
                SUM(CASE WHEN t.importe < 0 THEN ABS(t.importe) ELSE 0 END) as gastos,
                COUNT(*) as num_transacciones
@@ -889,10 +901,10 @@ def get_by_category(conn: sqlite3.Connection,
     where = "WHERE t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
     params: list = []
     if fecha_desde:
-        where += " AND t.fecha >= ?"
+        where += f" AND {_FECHA_EF} >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        where += " AND t.fecha <= ?"
+        where += f" AND {_FECHA_EF} <= ?"
         params.append(fecha_hasta)
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
@@ -921,10 +933,10 @@ def get_by_area(conn: sqlite3.Connection,
     where = "WHERE t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
     params: list = []
     if fecha_desde:
-        where += " AND t.fecha >= ?"
+        where += f" AND {_FECHA_EF} >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        where += " AND t.fecha <= ?"
+        where += f" AND {_FECHA_EF} <= ?"
         params.append(fecha_hasta)
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
@@ -950,15 +962,15 @@ def get_monthly_by_category(conn: sqlite3.Connection,
     where = "WHERE (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '') AND t.importe < 0"
     params: list = []
     if fecha_desde:
-        where += " AND t.fecha >= ?"
+        where += f" AND {_FECHA_EF} >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        where += " AND t.fecha <= ?"
+        where += f" AND {_FECHA_EF} <= ?"
         params.append(fecha_hasta)
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _tag_filter(tag, where, params)
     df = pd.read_sql_query(f"""
-        SELECT strftime('%Y-%m', t.fecha) as mes,
+        SELECT strftime('%Y-%m', {_FECHA_EF}) as mes,
                COALESCE(NULLIF(t.categoria,''), 'Sin categoría') as categoria,
                COALESCE(c.color, '#9ca3af') as color,
                ABS(SUM(t.importe)) as gasto
@@ -980,15 +992,15 @@ def get_monthly_by_area(conn: sqlite3.Connection,
     where = "WHERE (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '') AND t.importe < 0"
     params: list = []
     if fecha_desde:
-        where += " AND t.fecha >= ?"
+        where += f" AND {_FECHA_EF} >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        where += " AND t.fecha <= ?"
+        where += f" AND {_FECHA_EF} <= ?"
         params.append(fecha_hasta)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
     df = pd.read_sql_query(f"""
-        SELECT strftime('%Y-%m', t.fecha) as mes,
+        SELECT strftime('%Y-%m', {_FECHA_EF}) as mes,
                COALESCE(c.supercategoria, 'Otros') as area,
                ABS(SUM(t.importe)) as gasto
         FROM transactions t
@@ -1017,10 +1029,10 @@ def get_top_comercios(conn: sqlite3.Connection,
     )
     params: list = []
     if fecha_desde:
-        where += " AND t.fecha >= ?"
+        where += f" AND {_FECHA_EF} >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        where += " AND t.fecha <= ?"
+        where += f" AND {_FECHA_EF} <= ?"
         params.append(fecha_hasta)
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
@@ -1068,10 +1080,10 @@ def compute_kpi_values(conn: sqlite3.Connection,
         params: list = []
 
         if fecha_desde:
-            base += " AND t.fecha >= ?"
+            base += f" AND {_FECHA_EF} >= ?"
             params.append(fecha_desde)
         if fecha_hasta:
-            base += " AND t.fecha <= ?"
+            base += f" AND {_FECHA_EF} <= ?"
             params.append(fecha_hasta)
 
         if areas_list:
@@ -1164,10 +1176,10 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
     params: list = []
 
     if fecha_desde:
-        where_parts.append("t.fecha >= ?")
+        where_parts.append(f"{_FECHA_EF} >= ?")
         params.append(fecha_desde)
     if fecha_hasta:
-        where_parts.append("t.fecha <= ?")
+        where_parts.append(f"{_FECHA_EF} <= ?")
         params.append(fecha_hasta)
 
     if areas_list:
