@@ -8,6 +8,9 @@ import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import AccountPage from '@/pages/AccountPage'
 import SettingsPage from '@/pages/SettingsPage'
+import MovimientosPage from '@/pages/MovimientosPage'
+import PresupuestoPage from '@/pages/PresupuestoPage'
+import InformesPage from '@/pages/InformesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +41,9 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/account/:id" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/movimientos" element={<ProtectedRoute><MovimientosPage /></ProtectedRoute>} />
+          <Route path="/presupuesto" element={<ProtectedRoute><PresupuestoPage /></ProtectedRoute>} />
+          <Route path="/informes" element={<ProtectedRoute><InformesPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         </ErrorBoundary>

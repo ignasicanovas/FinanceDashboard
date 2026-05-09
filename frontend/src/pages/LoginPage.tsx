@@ -5,10 +5,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -39,37 +37,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="text-4xl mb-2">🏦</div>
-          <CardTitle>Iniciar sesión</CardTitle>
-          <CardDescription>Accede a tu panel de finanzas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register('email')} placeholder="tu@email.com" />
-              {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" {...register('password')} placeholder="••••••••" />
-              {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Accediendo...' : 'Entrar'}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-gray-600">
-            ¿No tienes cuenta?{' '}
-            <Link to="/register" className="text-blue-600 hover:underline">
-              Regístrate
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'oklch(11% 0.01 250)' }}>
+      <div
+        className="w-full max-w-sm rounded-2xl p-8"
+        style={{ background: 'var(--nf-paper)', border: '1px solid var(--nf-rule)' }}
+      >
+        <div className="text-center mb-6">
+          <p className="text-xl font-bold tracking-tight mb-1" style={{ color: 'var(--nf-accent)' }}>NanisFinance</p>
+          <p className="text-sm" style={{ color: 'var(--nf-ink-3)' }}>Accede a tu panel de finanzas</p>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="email" style={{ color: 'var(--nf-ink-2)', fontSize: '0.75rem' }}>Email</Label>
+            <Input id="email" type="email" {...register('email')} placeholder="tu@email.com" />
+            {errors.email && <p className="text-xs" style={{ color: 'var(--nf-neg)' }}>{errors.email.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" style={{ color: 'var(--nf-ink-2)', fontSize: '0.75rem' }}>Contraseña</Label>
+            <Input id="password" type="password" {...register('password')} placeholder="••••••••" />
+            {errors.password && <p className="text-xs" style={{ color: 'var(--nf-neg)' }}>{errors.password.message}</p>}
+          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all mt-2 disabled:opacity-60"
+            style={{ background: 'var(--nf-accent)', color: 'var(--nf-accent-ink)' }}
+          >
+            {isSubmitting ? 'Accediendo...' : 'Entrar'}
+          </button>
+        </form>
+        <p className="mt-5 text-center text-xs" style={{ color: 'var(--nf-ink-3)' }}>
+          ¿No tienes cuenta?{' '}
+          <Link to="/register" className="font-semibold" style={{ color: 'var(--nf-accent)' }}>
+            Regístrate
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }

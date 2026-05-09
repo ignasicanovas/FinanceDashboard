@@ -29,27 +29,36 @@ export default function KpiBar({ accountId, fechaDesde, fechaHasta, area, catego
     <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
       {kpis.map((kpi) => {
         const value = values[kpi.id] ?? 0
-        const colorClass =
-          kpi.tipo === 'balance'
-            ? value >= 0
-              ? 'text-green-700 bg-green-50 border-green-200'
-              : 'text-red-600 bg-red-50 border-red-200'
-            : kpi.tipo === 'ingreso'
-            ? 'text-green-700 bg-green-50 border-green-200'
-            : 'text-gray-700 bg-white border-gray-200'
+        const isIncome = kpi.tipo === 'ingreso'
+        const isBalance = kpi.tipo === 'balance'
+        const valueColor = isBalance
+          ? value >= 0 ? 'var(--nf-pos)' : 'var(--nf-neg)'
+          : isIncome ? 'var(--nf-pos)' : 'var(--nf-ink-2)'
 
         return (
           <button
             key={kpi.id}
-            onClick={() => onDrilldown?.({ title: `${kpi.emoji} ${kpi.label}`, accountId, kpiId: kpi.id, filters: { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, area, categoria, tag } })}
-            className={`flex-shrink-0 min-w-[140px] rounded-xl border p-4 text-left transition-shadow ${colorClass} ${onDrilldown ? 'hover:shadow-md cursor-pointer' : ''}`}
+            onClick={() => onDrilldown?.({
+              title: `${kpi.emoji} ${kpi.label}`,
+              accountId,
+              kpiId: kpi.id,
+              filters: { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, area, categoria, tag },
+            })}
+            className="flex-shrink-0 min-w-[148px] rounded-2xl p-4 text-left transition-all"
+            style={{
+              background: 'var(--nf-paper)',
+              border: '1px solid var(--nf-rule)',
+              cursor: onDrilldown ? 'pointer' : 'default',
+            }}
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-lg">{kpi.emoji}</span>
-              <span className="text-xs font-medium text-gray-500 truncate">{kpi.label}</span>
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-base leading-none">{kpi.emoji}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--nf-ink-3)' }}>
+                {kpi.label}
+              </span>
             </div>
-            <p className="text-xl font-bold tabular-nums">
-              {kpi.tipo === 'gasto' || kpi.tipo === 'ahorro' ? '-' : kpi.tipo === 'ingreso' ? '+' : ''}
+            <p className="text-xl font-bold nf-mono" style={{ color: valueColor, letterSpacing: '-0.02em' }}>
+              {kpi.tipo === 'gasto' || kpi.tipo === 'ahorro' ? '−' : kpi.tipo === 'ingreso' ? '+' : ''}
               {formatCurrency(Math.abs(value))}
             </p>
           </button>
