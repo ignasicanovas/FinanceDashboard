@@ -104,17 +104,25 @@ export interface Rule {
 }
 
 // ── KPIs ──────────────────────────────────────────────────────
+export interface FormulaItem {
+  tipo: 'area' | 'categoria'
+  nombre: string
+  signo: '+' | '-'
+}
+
 export interface Kpi {
   id: number
   label: string
   emoji: string
-  tipo: 'gasto' | 'ingreso' | 'balance' | 'ahorro' | 'neto'
+  tipo: 'gasto' | 'ingreso' | 'balance' | 'ahorro' | 'neto' | 'personalizado'
   orden: number
   areas: string
   areas_list: string[]
   compensacion_filtro?: string
   kpis_ref: string
   kpis_ref_list: number[]
+  formula?: string
+  formula_list: FormulaItem[]
 }
 
 // ── Stats ─────────────────────────────────────────────────────

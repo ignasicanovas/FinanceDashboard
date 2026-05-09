@@ -1,15 +1,22 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
+
+
+class FormulaItem(BaseModel):
+    tipo: Literal['area', 'categoria']
+    nombre: str
+    signo: Literal['+', '-']
 
 
 class KpiCreate(BaseModel):
     label: str
     emoji: str = "📊"
-    tipo: str = "gasto"  # gasto | ingreso | balance | ahorro | neto
+    tipo: str = "gasto"  # gasto | ingreso | balance | ahorro | neto | personalizado
     orden: int = 99
     areas: list[str] = []
     compensacion_filtro: Optional[str] = None
     kpis_ref: list[int] = []
+    formula: list[FormulaItem] = []
 
 
 class KpiUpdate(BaseModel):
@@ -20,6 +27,7 @@ class KpiUpdate(BaseModel):
     areas: Optional[list[str]] = None
     compensacion_filtro: Optional[str] = None
     kpis_ref: Optional[list[int]] = None
+    formula: Optional[list[FormulaItem]] = None
 
 
 class KpiOut(BaseModel):
@@ -33,6 +41,8 @@ class KpiOut(BaseModel):
     compensacion_filtro: Optional[str] = None
     kpis_ref: str = ''
     kpis_ref_list: list[int] = []
+    formula: Optional[str] = None
+    formula_list: list[dict] = []
 
 
 class KpiReorderRequest(BaseModel):

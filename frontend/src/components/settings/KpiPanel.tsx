@@ -11,8 +11,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { useKpis, useCreateKpi, useUpdateKpi, useDeleteKpi, useReorderKpis } from '@/hooks/useKpis'
-import { useAreas } from '@/hooks/useCategories'
-import type { Kpi } from '@/types'
+import { useAreas, useCategories } from '@/hooks/useCategories'
+import FormulaBuilder from './FormulaBuilder'
+import type { Kpi, FormulaItem } from '@/types'
 
 interface KpiPanelProps {
   accountId: number
@@ -26,13 +27,15 @@ const TIPO_LABELS: Record<string, string> = {
   balance: 'Balance',
   ahorro: 'Ahorro',
   neto: 'Neto',
+  personalizado: 'Personalizado',
 }
 
-type FormTipo = 'gasto' | 'ingreso' | 'balance' | 'ahorro' | 'neto'
+type FormTipo = 'gasto' | 'ingreso' | 'balance' | 'ahorro' | 'neto' | 'personalizado'
 
 export default function KpiPanel({ accountId }: KpiPanelProps) {
   const { data: kpis = [] } = useKpis(accountId)
   const { data: areas = [] } = useAreas(accountId)
+  const { data: categories = [] } = useCategories(accountId)
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null)
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState({
@@ -43,9 +46,10 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     areas: [] as string[],
     compensacion_filtro: undefined as string | undefined,
     kpis_ref: [] as number[],
+    formula: [] as FormulaItem[],
   })
 
-  // Drag & drop state
+  // Drag & drop state (para reordenar KPIs en la lista)
   const dragId = useRef<number | null>(null)
   const [dragOverId, setDragOverId] = useState<number | null>(null)
 
@@ -55,7 +59,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
   const reorderKpis = useReorderKpis(accountId)
 
   const openNew = () => {
-    setForm({ label: '', emoji: '📊', tipo: 'gasto', orden: kpis.length + 1, areas: [], compensacion_filtro: undefined, kpis_ref: [] })
+    setForm({ label: '', emoji: '📊', tipo: 'gasto', orden: kpis.length + 1, areas: [], compensacion_filtro: undefined, kpis_ref: [], formula: [] })
     setEditingKpi(null)
     setShowNew(true)
   }
@@ -70,6 +74,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
       areas: kpi.areas_list,
       compensacion_filtro: kpi.compensacion_filtro,
       kpis_ref: kpi.kpis_ref_list,
+      formula: kpi.formula_list ?? [],
     })
     setShowNew(true)
   }
@@ -84,6 +89,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
         areas: form.areas,
         compensacion_filtro: form.compensacion_filtro,
         kpis_ref: form.kpis_ref,
+        formula: form.formula,
       }
       if (editingKpi) {
         await updateKpi.mutateAsync({ kpiId: editingKpi.id, data: payload })
@@ -119,7 +125,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     }))
   }
 
-  // Drag & drop handlers
+  // Drag & drop handlers (reordenar KPIs)
   const handleDragStart = (id: number) => {
     dragId.current = id
   }
@@ -152,10 +158,12 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     setDragOverId(null)
   }
 
-  // KPIs available as references (non-neto, and not the one being edited)
+  // KPIs disponibles como referencia (no neto, no el que se edita)
   const refCandidates = kpis.filter(
     (k) => k.tipo !== 'neto' && (!editingKpi || k.id !== editingKpi.id),
   )
+
+  const isPersonalizado = form.tipo === 'personalizado'
 
   return (
     <div className="space-y-4">
@@ -186,9 +194,14 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
                 <Badge variant="secondary" className="text-xs">
                   {TIPO_LABELS[kpi.tipo] ?? kpi.tipo}
                 </Badge>
-                {kpi.areas_list.map((a) => (
+                {kpi.tipo !== 'personalizado' && kpi.areas_list.map((a) => (
                   <Badge key={a} variant="outline" className="text-xs">{a}</Badge>
                 ))}
+                {kpi.tipo === 'personalizado' && kpi.formula_list.length > 0 && (
+                  <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                    {kpi.formula_list.length} elemento{kpi.formula_list.length !== 1 ? 's' : ''}
+                  </Badge>
+                )}
                 {kpi.tipo === 'neto' && kpi.kpis_ref_list.length > 0 && (
                   <Badge variant="outline" className="text-xs text-purple-600 border-purple-300">
                     {kpi.kpis_ref_list.length} ref{kpi.kpis_ref_list.length > 1 ? 's' : ''}
@@ -212,7 +225,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
       </div>
 
       <Dialog open={showNew} onOpenChange={(o) => { if (!o) { setShowNew(false); setEditingKpi(null) } }}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className={isPersonalizado ? 'sm:max-w-2xl' : 'sm:max-w-sm'}>
           <DialogHeader>
             <DialogTitle>{editingKpi ? 'Editar KPI' : 'Nuevo KPI'}</DialogTitle>
           </DialogHeader>
@@ -237,7 +250,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
             </div>
             <div>
               <Label>Tipo</Label>
-              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as FormTipo, kpis_ref: [] })}>
+              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as FormTipo, kpis_ref: [], formula: [] })}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -247,11 +260,12 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
                   <SelectItem value="balance">Balance neto</SelectItem>
                   <SelectItem value="ahorro">Gasto de ahorro</SelectItem>
                   <SelectItem value="neto">Neto entre KPIs</SelectItem>
+                  <SelectItem value="personalizado">Personalizado (fórmula libre)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {form.tipo !== 'neto' && (
+            {!isPersonalizado && form.tipo !== 'neto' && (
               <div>
                 <Label>Áreas incluidas (vacío = todas)</Label>
                 <div className="mt-2 space-y-1 max-h-36 overflow-y-auto">
@@ -292,6 +306,21 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {isPersonalizado && (
+              <div>
+                <Label>Fórmula</Label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Arrastra áreas o categorías a <span className="font-semibold text-green-700">+ Suma</span> o <span className="font-semibold text-red-600">− Resta</span>. El valor del KPI es la suma algebraica de los importes.
+                </p>
+                <FormulaBuilder
+                  areas={areas}
+                  categories={categories}
+                  formula={form.formula}
+                  onChange={(f) => setForm((prev) => ({ ...prev, formula: f }))}
+                />
               </div>
             )}
 

@@ -20,7 +20,7 @@ def create_kpi(body: KpiCreate, account_conn: EditorConn):
     kpi_id = db_module.upsert_kpi(
         conn, account["db_blob"], None,
         body.label, body.emoji, body.tipo, body.orden, body.areas, body.compensacion_filtro,
-        body.kpis_ref,
+        body.kpis_ref, [item.model_dump() for item in body.formula],
     )
     kpis = db_module.get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)
@@ -44,11 +44,14 @@ def update_kpi(kpi_id: int, body: KpiUpdate, account_conn: EditorConn):
     kpis_ref_list = merged.get("kpis_ref_list", [])
     if "kpis_ref" in updates:
         kpis_ref_list = updates["kpis_ref"]
+    formula_list = existing.get("formula_list", [])
+    if "formula" in updates:
+        formula_list = [item.model_dump() if hasattr(item, "model_dump") else item for item in updates["formula"]]
     db_module.upsert_kpi(
         conn, account["db_blob"], kpi_id,
         merged["label"], merged["emoji"], merged["tipo"],
         merged["orden"], areas_list, merged.get("compensacion_filtro"),
-        kpis_ref_list,
+        kpis_ref_list, formula_list,
     )
     kpis = db_module.get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)

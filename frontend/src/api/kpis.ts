@@ -1,14 +1,25 @@
 import { apiClient } from './client'
-import type { Kpi } from '@/types'
+import type { Kpi, FormulaItem } from '@/types'
+
+type KpiPayload = {
+  label: string
+  emoji: string
+  tipo: string
+  orden: number
+  areas: string[]
+  compensacion_filtro?: string
+  kpis_ref: number[]
+  formula: FormulaItem[]
+}
 
 export const kpisApi = {
   list: (accountId: number) =>
     apiClient.get<Kpi[]>(`/api/accounts/${accountId}/kpis`).then((r) => r.data),
 
-  create: (accountId: number, data: Omit<Kpi, 'id' | 'areas' | 'areas_list' | 'kpis_ref' | 'kpis_ref_list'> & { areas: string[]; kpis_ref: number[] }) =>
+  create: (accountId: number, data: KpiPayload) =>
     apiClient.post<Kpi>(`/api/accounts/${accountId}/kpis`, data).then((r) => r.data),
 
-  update: (accountId: number, kpiId: number, data: Partial<Omit<Kpi, 'areas' | 'kpis_ref' | 'kpis_ref_list'> & { areas: string[]; kpis_ref: number[] }>) =>
+  update: (accountId: number, kpiId: number, data: Partial<KpiPayload>) =>
     apiClient.put<Kpi>(`/api/accounts/${accountId}/kpis/${kpiId}`, data).then((r) => r.data),
 
   delete: (accountId: number, kpiId: number) =>
