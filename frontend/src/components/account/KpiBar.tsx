@@ -30,7 +30,7 @@ export default function KpiBar({ accountId, fechaDesde, fechaHasta, area, catego
       {kpis.map((kpi) => {
         const value = values[kpi.id] ?? 0
         const isIncome = kpi.tipo === 'ingreso'
-        const isBalance = kpi.tipo === 'balance'
+        const isBalance = kpi.tipo === 'balance' || kpi.tipo === 'personalizado'
         const valueColor = isBalance
           ? value >= 0 ? 'var(--nf-pos)' : 'var(--nf-neg)'
           : isIncome ? 'var(--nf-pos)' : 'var(--nf-ink-2)'
@@ -58,7 +58,7 @@ export default function KpiBar({ accountId, fechaDesde, fechaHasta, area, catego
               </span>
             </div>
             <p className="text-xl font-bold nf-mono" style={{ color: valueColor, letterSpacing: '-0.02em' }}>
-              {kpi.tipo === 'gasto' || kpi.tipo === 'ahorro' ? '−' : kpi.tipo === 'ingreso' ? '+' : ''}
+              {kpi.tipo === 'gasto' || kpi.tipo === 'ahorro' ? '−' : kpi.tipo === 'ingreso' ? '+' : kpi.tipo === 'personalizado' ? (value >= 0 ? '+' : '−') : ''}
               {formatCurrency(Math.abs(value))}
             </p>
           </button>
