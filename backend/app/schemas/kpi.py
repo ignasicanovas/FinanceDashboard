@@ -8,6 +8,7 @@ class KpiCreate(BaseModel):
     orden: int = 99
     areas: list[str] = []
     categorias: list[str] = []
+    desde_ahorro: int = 0
 
 
 class KpiUpdate(BaseModel):
@@ -16,6 +17,7 @@ class KpiUpdate(BaseModel):
     orden: Optional[int] = None
     areas: Optional[list[str]] = None
     categorias: Optional[list[str]] = None
+    desde_ahorro: Optional[int] = None
 
 
 class KpiOut(BaseModel):
@@ -27,6 +29,7 @@ class KpiOut(BaseModel):
     areas_list: list[str]
     categorias: str = ""
     categorias_list: list[str] = []
+    desde_ahorro: int = 0
 
 
 class KpiReorderRequest(BaseModel):

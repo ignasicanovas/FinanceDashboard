@@ -1,5 +1,5 @@
-import { apiClient } from './client'
-import type { Kpi } from '@/types'
+import { apiClient } from "./client"
+import type { Kpi } from "@/types"
 
 type KpiPayload = {
   label: string
@@ -7,6 +7,7 @@ type KpiPayload = {
   orden: number
   areas: string[]
   categorias: string[]
+  desde_ahorro: number
 }
 
 export const kpisApi = {

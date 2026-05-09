@@ -19,7 +19,7 @@ def create_kpi(body: KpiCreate, account_conn: EditorConn):
     conn, account, _ = account_conn
     kpi_id = db_module.upsert_kpi(
         conn, account["db_blob"], None,
-        body.label, body.emoji, body.orden, body.areas, body.categorias,
+        body.label, body.emoji, body.orden, body.areas, body.categorias, body.desde_ahorro,
     )
     kpis = db_module.get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)
@@ -39,9 +39,10 @@ def update_kpi(kpi_id: int, body: KpiUpdate, account_conn: EditorConn):
     merged = {**existing, **updates}
     areas_list = updates["areas"] if "areas" in updates else existing["areas_list"]
     categorias_list = updates["categorias"] if "categorias" in updates else existing["categorias_list"]
+    desde_ahorro = updates.get("desde_ahorro", existing.get("desde_ahorro", 0))
     db_module.upsert_kpi(
         conn, account["db_blob"], kpi_id,
-        merged["label"], merged["emoji"], merged["orden"], areas_list, categorias_list,
+        merged["label"], merged["emoji"], merged["orden"], areas_list, categorias_list, desde_ahorro,
     )
     kpis = db_module.get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)
