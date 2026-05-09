@@ -8,7 +8,7 @@ import RulesPanel from '@/components/settings/RulesPanel'
 import TagsPanel from '@/components/settings/TagsPanel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAccounts, useAccount, useDeleteAccount } from '@/hooks/useAccounts'
+import { useAccounts, useDeleteAccount } from '@/hooks/useAccounts'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -21,7 +21,7 @@ export default function SettingsPage() {
   const accountId = Number(searchParams.get('account') || accounts[0]?.id || 0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  const { data: account } = useAccount(accountId)
+  const account = accounts.find(a => a.id === accountId)
   const deleteAccount = useDeleteAccount()
 
   const setTab = (t: string) => setSearchParams((p) => { p.set('tab', t); return p })
