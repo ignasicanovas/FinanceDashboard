@@ -34,6 +34,9 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 
+# Claude Code
+.claude/
+
 # Editor
 .vscode/
 .idea/
