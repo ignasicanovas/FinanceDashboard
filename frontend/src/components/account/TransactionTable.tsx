@@ -154,7 +154,7 @@ export default function TransactionTable({
                             onClick={() => updateTxn.mutate({ txnId: txn.id, data: { diferir_mes: 0 } })}
                           >
                             <CalendarX className="w-4 h-4 mr-2" />
-                            Quitar aplazamiento
+                            Devolver a fecha original
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => setCompensationTxn(txn)}>
