@@ -119,7 +119,7 @@ export default function TransactionTable({
                       accountId={accountId}
                       value={txn.categoria || ''}
                       onChange={(v) => handleCategoryChange(txn.id, v)}
-                      disabled={false}
+                      disabled={txn.compensacion_tipo === 'reembolso' && (txn.importe ?? 0) > 0}
                     />
                   </TableCell>
                   <TableCell>
