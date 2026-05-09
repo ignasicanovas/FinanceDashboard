@@ -157,7 +157,9 @@ def _init_account_db(conn: sqlite3.Connection):
             tipo TEXT DEFAULT 'gasto',
             orden INTEGER DEFAULT 99,
             areas TEXT DEFAULT '',
-            compensacion_filtro TEXT DEFAULT NULL
+            compensacion_filtro TEXT DEFAULT NULL,
+            kpis_ref TEXT DEFAULT '',
+            formula TEXT DEFAULT NULL
         )
     """)
     conn.execute("""
@@ -233,6 +235,18 @@ def _init_account_db(conn: sqlite3.Connection):
         conn.commit()
     except sqlite3.OperationalError:
         pass  # columna ya existe
+
+    try:
+        conn.execute("ALTER TABLE kpi_config ADD COLUMN kpis_ref TEXT DEFAULT ''")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        conn.execute("ALTER TABLE kpi_config ADD COLUMN formula TEXT DEFAULT NULL")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
 
     if conn.execute("SELECT COUNT(*) FROM kpi_config").fetchone()[0] == 0:
         default_kpis = [
@@ -612,12 +626,15 @@ def test_rule(conn: sqlite3.Connection, keyword: str) -> list[dict]:
 # ── KPI CONFIG ────────────────────────────────────────────────
 
 def get_kpi_config(conn: sqlite3.Connection) -> list[dict]:
+    import json as _json
     rows = conn.execute("SELECT * FROM kpi_config ORDER BY orden, id").fetchall()
     result = []
     for r in rows:
         d = dict(r)
         d["areas_list"] = [a.strip() for a in (d.get("areas") or "").split(",") if a.strip()]
         d["kpis_ref_list"] = [int(x) for x in (d.get("kpis_ref") or "").split(",") if x.strip()]
+        formula_raw = d.get("formula")
+        d["formula_list"] = _json.loads(formula_raw) if formula_raw else []
         result.append(d)
     return result
 
@@ -625,21 +642,23 @@ def get_kpi_config(conn: sqlite3.Connection) -> list[dict]:
 def upsert_kpi(conn: sqlite3.Connection, blob_name: str, kpi_id: Optional[int],
                label: str, emoji: str, tipo: str, orden: int,
                areas: list[str], compensacion_filtro: Optional[str] = None,
-               kpis_ref: list[int] = None) -> int:
+               kpis_ref: list[int] = None, formula: list[dict] = None) -> int:
+    import json as _json
     areas_csv = ",".join(areas)
     kpis_ref_csv = ",".join(str(x) for x in (kpis_ref or []))
+    formula_json = _json.dumps(formula) if formula else None
     if kpi_id:
         conn.execute(
-            "UPDATE kpi_config SET label=?, emoji=?, tipo=?, orden=?, areas=?, compensacion_filtro=?, kpis_ref=? WHERE id=?",
-            (label, emoji, tipo, orden, areas_csv, compensacion_filtro, kpis_ref_csv, kpi_id)
+            "UPDATE kpi_config SET label=?, emoji=?, tipo=?, orden=?, areas=?, compensacion_filtro=?, kpis_ref=?, formula=? WHERE id=?",
+            (label, emoji, tipo, orden, areas_csv, compensacion_filtro, kpis_ref_csv, formula_json, kpi_id)
         )
         conn.commit()
         _upload_db(blob_name)
         return kpi_id
     else:
         cursor = conn.execute(
-            "INSERT INTO kpi_config (label, emoji, tipo, orden, areas, compensacion_filtro, kpis_ref) VALUES (?,?,?,?,?,?,?)",
-            (label, emoji, tipo, orden, areas_csv, compensacion_filtro, kpis_ref_csv)
+            "INSERT INTO kpi_config (label, emoji, tipo, orden, areas, compensacion_filtro, kpis_ref, formula) VALUES (?,?,?,?,?,?,?,?)",
+            (label, emoji, tipo, orden, areas_csv, compensacion_filtro, kpis_ref_csv, formula_json)
         )
         conn.commit()
         _upload_db(blob_name)
@@ -898,7 +917,10 @@ def get_by_category(conn: sqlite3.Connection,
                     tag: Optional[str] = None,
                     categoria: Optional[str] = None) -> list[dict]:
     import pandas as pd
-    where = "WHERE t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
+    where = """WHERE (
+        (t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = ''))
+        OR (t.importe > 0 AND t.categoria IS NOT NULL AND t.categoria != '' AND t.categoria != 'No computable')
+    )"""
     params: list = []
     if fecha_desde:
         where += f" AND {_FECHA_EF} >= ?"
@@ -930,7 +952,10 @@ def get_by_area(conn: sqlite3.Connection,
                 categoria: Optional[str] = None,
                 tag: Optional[str] = None) -> list[dict]:
     import pandas as pd
-    where = "WHERE t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
+    where = """WHERE (
+        (t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = ''))
+        OR (t.importe > 0 AND t.categoria IS NOT NULL AND t.categoria != '' AND t.categoria != 'No computable')
+    )"""
     params: list = []
     if fecha_desde:
         where += f" AND {_FECHA_EF} >= ?"
@@ -1086,18 +1111,38 @@ def compute_kpi_values(conn: sqlite3.Connection,
             base += f" AND {_FECHA_EF} <= ?"
             params.append(fecha_hasta)
 
-        if areas_list:
+        if areas_list and tipo != "personalizado":
             placeholders = ",".join("?" for _ in areas_list)
             base += f" AND c.supercategoria IN ({placeholders})"
             params.extend(areas_list)
 
-        if comp_filtro == "excluir_compensaciones":
+        if comp_filtro == "excluir_compensaciones" and tipo != "personalizado":
             base += " AND t.compensacion_tipo IS NULL"
 
         # Filtros dinámicos del usuario (se añaden sobre los del KPI)
         base, params = _multi_in("c.supercategoria", area, base, params)
         base, params = _multi_in("t.categoria", categoria, base, params)
         base, params = _tag_filter(tag, base, params)
+
+        if tipo == "personalizado":
+            formula_list = kpi.get("formula_list", [])
+            total = 0.0
+            for item in formula_list:
+                item_tipo = item.get("tipo")
+                item_nombre = item.get("nombre")
+                item_signo = item.get("signo", "+")
+                if item_tipo == "area":
+                    item_conds = base + " AND c.supercategoria = ?"
+                else:
+                    item_conds = base + " AND t.categoria = ?"
+                item_params_ = params + [item_nombre]
+                row = conn.execute(
+                    f"SELECT SUM(t.importe) FROM transactions t {join} WHERE {item_conds}",
+                    item_params_
+                ).fetchone()
+                val = float(row[0] or 0)
+                total += val if item_signo == "+" else -val
+            return total
 
         if tipo == "gasto":
             w = f"WHERE {base} AND t.importe < 0 AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
@@ -1121,7 +1166,7 @@ def compute_kpi_values(conn: sqlite3.Connection,
 
     # Pasada 1: tipos de datos (no neto)
     for kpi in kpis:
-        if kpi.get("tipo") != "neto":
+        if kpi.get("tipo") not in ("neto",):
             result[kpi["id"]] = _compute_single(kpi)
 
     # Pasada 2: tipo neto — combina valores ya calculados
@@ -1160,8 +1205,8 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
     areas_list = kpi.get("areas_list", [])
     comp_filtro = kpi.get("compensacion_filtro")
 
-    # Los KPIs de tipo 'neto' no tienen transacciones propias — son combinaciones
-    if tipo == "neto":
+    # Los KPIs de tipo 'neto' y 'personalizado' no tienen transacciones propias
+    if tipo in ("neto", "personalizado"):
         return []
 
     base = (
