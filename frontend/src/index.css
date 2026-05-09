@@ -24,8 +24,8 @@
 }
 
 @layer base {
+  /* ── Dark theme (default) ─────────────────────────── */
   :root {
-    /* shadcn tokens mapped to dark fintech palette */
     --background: 224 20% 10%;
     --foreground: 210 15% 94%;
     --card: 224 18% 13%;
@@ -47,7 +47,6 @@
     --ring: 78 85% 65%;
     --radius: 0.75rem;
 
-    /* NanisFinance design tokens */
     --nf-paper: oklch(15% 0.01 250);
     --nf-surface-1: oklch(13% 0.01 250);
     --nf-surface-2: oklch(20% 0.01 250);
@@ -55,21 +54,56 @@
     --nf-ink: oklch(96% 0.005 85);
     --nf-ink-2: oklch(75% 0.008 85);
     --nf-ink-3: oklch(55% 0.01 85);
+    --nf-body-bg: oklch(11% 0.01 250);
     --nf-accent: #d6f25b;
     --nf-accent-ink: oklch(14% 0.01 250);
     --nf-pos: oklch(78% 0.16 150);
     --nf-neg: oklch(70% 0.18 25);
     --nf-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   }
+
+  /* ── Light theme ──────────────────────────────────── */
+  html[data-theme="light"] {
+    --background: 0 0% 99%;
+    --foreground: 224 20% 14%;
+    --card: 0 0% 99%;
+    --card-foreground: 224 20% 14%;
+    --popover: 0 0% 99%;
+    --popover-foreground: 224 20% 14%;
+    --primary: 78 75% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 224 20% 18%;
+    --muted: 40 20% 94%;
+    --muted-foreground: 224 12% 48%;
+    --accent: 40 20% 94%;
+    --accent-foreground: 224 20% 14%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 12% 88%;
+    --input: 40 12% 88%;
+    --ring: 78 75% 42%;
+
+    --nf-paper: oklch(99% 0.004 85);
+    --nf-surface-1: oklch(97.5% 0.005 85);
+    --nf-surface-2: oklch(95% 0.006 85);
+    --nf-rule: oklch(91% 0.006 85);
+    --nf-ink: oklch(18% 0.01 250);
+    --nf-ink-2: oklch(40% 0.01 250);
+    --nf-ink-3: oklch(58% 0.012 250);
+    --nf-body-bg: oklch(97.5% 0.005 85);
+    --nf-accent: #6ea60a;        /* darker lime so it's legible on white */
+    --nf-accent-ink: oklch(99% 0.003 85);
+    --nf-pos: oklch(42% 0.14 150);
+    --nf-neg: oklch(50% 0.18 25);
+  }
 }
 
 @layer base {
-  * {
-    border-color: hsl(var(--border));
-  }
+  * { border-color: hsl(var(--border)); }
   html, body, #root { height: 100%; }
   body {
-    background-color: oklch(11% 0.01 250);
+    background-color: var(--nf-body-bg);
     color: var(--nf-ink);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -77,10 +111,8 @@
   }
 }
 
-/* Mono figures */
 .nf-mono { font-family: var(--nf-mono); }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--nf-rule); border-radius: 6px; border: 2px solid var(--nf-paper); }
 ::-webkit-scrollbar-track { background: transparent; }

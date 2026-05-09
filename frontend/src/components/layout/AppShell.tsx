@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Settings, LogOut, Menu, X,
   ArrowLeftRight, PiggyBank, BarChart3, ChevronRight,
+  Sun, Moon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useAccounts } from '@/hooks/useAccounts'
+import { useTheme } from '@/hooks/useTheme'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -27,6 +29,7 @@ export default function AppShell({ children, title }: AppShellProps) {
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
   const { data: accounts = [] } = useAccounts()
+  const { theme, toggleTheme } = useTheme()
 
   const handleLogout = () => {
     logout()
@@ -34,7 +37,7 @@ export default function AppShell({ children, title }: AppShellProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'oklch(11% 0.01 250)' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--nf-body-bg)' }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -179,6 +182,17 @@ export default function AppShell({ children, title }: AppShellProps) {
           {title && (
             <h1 className="text-sm font-semibold" style={{ color: 'var(--nf-ink)' }}>{title}</h1>
           )}
+          <div className="flex-1" />
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-xl transition-all hover:bg-[var(--nf-surface-2)]"
+            title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          >
+            {theme === 'dark'
+              ? <Sun className="w-4 h-4" style={{ color: 'var(--nf-ink-3)' }} />
+              : <Moon className="w-4 h-4" style={{ color: 'var(--nf-ink-3)' }} />
+            }
+          </button>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">

@@ -37,7 +37,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'oklch(11% 0.01 250)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--nf-body-bg)' }}>
       <div
         className="w-full max-w-sm rounded-2xl p-8"
         style={{ background: 'var(--nf-paper)', border: '1px solid var(--nf-rule)' }}
