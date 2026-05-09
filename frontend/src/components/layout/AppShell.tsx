@@ -24,9 +24,17 @@ export default function AppShell({ children, title }: AppShellProps) {
     navigate('/login')
   }
 
+  const accountMatch = location.pathname.match(/^\/account\/(\d+)/)
+  const currentAccountId = accountMatch ? accountMatch[1] : null
+
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/settings', label: 'Configuración', icon: Settings },
+    { href: '/dashboard', activePath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    {
+      href: currentAccountId ? `/settings?account=${currentAccountId}` : '/settings',
+      activePath: '/settings',
+      label: 'Configuración',
+      icon: Settings,
+    },
   ]
 
   return (
@@ -64,7 +72,7 @@ export default function AppShell({ children, title }: AppShellProps) {
               to={item.href}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                location.pathname === item.href
+                location.pathname === item.activePath
                   ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               )}
