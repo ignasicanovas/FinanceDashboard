@@ -1,15 +1,12 @@
 import { apiClient } from './client'
-import type { Kpi, FormulaItem } from '@/types'
+import type { Kpi } from '@/types'
 
 type KpiPayload = {
   label: string
   emoji: string
-  tipo: string
   orden: number
   areas: string[]
-  compensacion_filtro?: string
-  kpis_ref: number[]
-  formula: FormulaItem[]
+  categorias: string[]
 }
 
 export const kpisApi = {

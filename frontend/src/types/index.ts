@@ -1,4 +1,4 @@
-// ── Auth ──────────────────────────────────────────────────────
+// â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface User {
   id: number
   email: string
@@ -12,7 +12,7 @@ export interface TokenResponse {
   token_type: string
 }
 
-// ── Accounts ─────────────────────────────────────────────────
+// â”€â”€ Accounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Account {
   id: number
   nombre: string
@@ -43,7 +43,7 @@ export interface Member {
   invited_at?: string
 }
 
-// ── Transactions ─────────────────────────────────────────────
+// â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Transaction {
   id: string
   fecha?: string
@@ -86,7 +86,7 @@ export interface UploadResult {
   banco_detectado: string
 }
 
-// ── Categories ────────────────────────────────────────────────
+// â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Category {
   nombre: string
   color: string
@@ -95,7 +95,7 @@ export interface Category {
   created_at?: string
 }
 
-// ── Rules ─────────────────────────────────────────────────────
+// â”€â”€ Rules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Rule {
   id: number
   keyword: string
@@ -103,29 +103,19 @@ export interface Rule {
   created_at?: string
 }
 
-// ── KPIs ──────────────────────────────────────────────────────
-export interface FormulaItem {
-  tipo: 'area' | 'categoria'
-  nombre: string
-  signo: '+' | '-'
-}
-
+// â”€â”€ KPIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Kpi {
   id: number
   label: string
   emoji: string
-  tipo: 'gasto' | 'ingreso' | 'balance' | 'ahorro' | 'neto' | 'personalizado'
   orden: number
   areas: string
   areas_list: string[]
-  compensacion_filtro?: string
-  kpis_ref: string
-  kpis_ref_list: number[]
-  formula?: string
-  formula_list: FormulaItem[]
+  categorias: string
+  categorias_list: string[]
 }
 
-// ── Stats ─────────────────────────────────────────────────────
+// â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface MonthlySummaryItem {
   mes: string
   ingresos: number
@@ -158,14 +148,14 @@ export interface MonthlyAreaItem {
   gasto: number
 }
 
-// ── Tags ──────────────────────────────────────────────────────
+// â”€â”€ Tags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Tag {
   nombre: string
   color: string
   created_at?: string
 }
 
-// ── Filters ───────────────────────────────────────────────────
+// â”€â”€ Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface TransactionFilters {
   fecha_desde?: string
   fecha_hasta?: string
