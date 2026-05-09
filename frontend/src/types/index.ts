@@ -62,6 +62,7 @@ export interface Transaction {
   compensacion_de?: string
   compensacion_tipo?: string
   desde_ahorro?: number
+  diferir_mes?: number
   created_at?: string
   categoria_color?: string
   categoria_emoji?: string

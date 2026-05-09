@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreHorizontal, ArrowLeft, ArrowRight, Banknote, RefreshCw } from 'lucide-react'
+import { MoreHorizontal, ArrowLeft, ArrowRight, Banknote, RefreshCw, CalendarArrowUp } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -95,6 +95,12 @@ export default function TransactionTable({
                           Ahorro
                         </Badge>
                       )}
+                      {txn.diferir_mes === 1 && (
+                        <Badge variant="secondary" className="text-xs flex items-center gap-1 shrink-0 text-orange-600">
+                          <CalendarArrowUp className="w-3 h-3" />
+                          +1 mes
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums whitespace-nowrap">
@@ -125,6 +131,12 @@ export default function TransactionTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => updateTxn.mutate({ txnId: txn.id, data: { diferir_mes: txn.diferir_mes === 1 ? 0 : 1 } })}
+                        >
+                          <CalendarArrowUp className="w-4 h-4 mr-2" />
+                          {txn.diferir_mes === 1 ? 'Quitar aplazamiento de mes' : 'Aplazar al mes siguiente'}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setCompensationTxn(txn)}>
                           Gestionar compensación
                         </DropdownMenuItem>

@@ -20,6 +20,7 @@ class TransactionOut(BaseModel):
     compensacion_de: Optional[str] = None
     compensacion_tipo: Optional[str] = None
     desde_ahorro: Optional[int] = None
+    diferir_mes: Optional[int] = None
     created_at: Optional[str] = None
     # Campos extra de JOIN con categories
     categoria_color: Optional[str] = None
@@ -33,6 +34,7 @@ class TransactionUpdate(BaseModel):
     compensacion_de: Optional[str] = None
     compensacion_tipo: Optional[str] = None
     desde_ahorro: Optional[int] = None
+    diferir_mes: Optional[int] = None
 
 
 class BulkCategorizeRequest(BaseModel):
