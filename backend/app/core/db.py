@@ -18,9 +18,9 @@ LOCAL_ONLY = os.environ.get("LOCAL_ONLY", "").lower() in ("1", "true", "yes")
 SUPERCATEGORIAS = ["Necesidades", "Ocio", "Hogar", "Salud", "Finanzas", "Trabajo", "Otros"]
 NO_COMPUTABLE = "No computable"
 
-# Fecha efectiva de cómputo: si diferir_mes=1, se desplaza al mes siguiente
-_FECHA_EF = "CASE WHEN t.diferir_mes = 1 THEN date(t.fecha, '+1 month') ELSE t.fecha END"
-_FECHA_EF_RAW = "CASE WHEN diferir_mes = 1 THEN date(fecha, '+1 month') ELSE fecha END"
+# Fecha efectiva de cómputo: diferir_mes=1 → día 1 mes siguiente; diferir_mes=-1 → día 1 mes anterior
+_FECHA_EF = "CASE WHEN t.diferir_mes = 1 THEN date(t.fecha, 'start of month', '+1 month') WHEN t.diferir_mes = -1 THEN date(t.fecha, 'start of month', '-1 month') ELSE t.fecha END"
+_FECHA_EF_RAW = "CASE WHEN diferir_mes = 1 THEN date(fecha, 'start of month', '+1 month') WHEN diferir_mes = -1 THEN date(fecha, 'start of month', '-1 month') ELSE fecha END"
 
 # ── Connection cache ──────────────────────────────────────────
 _conn_cache: dict[str, sqlite3.Connection] = {}
