@@ -19,8 +19,7 @@ def create_kpi(body: KpiCreate, account_conn: EditorConn):
     conn, account, _ = account_conn
     kpi_id = db_module.upsert_kpi(
         conn, account["db_blob"], None,
-        body.label, body.emoji, body.tipo, body.orden, body.areas, body.compensacion_filtro,
-        body.kpis_ref, [item.model_dump() for item in body.formula],
+        body.label, body.emoji, body.orden, body.areas, body.categorias,
     )
     kpis = db_module.get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)
@@ -38,20 +37,11 @@ def update_kpi(kpi_id: int, body: KpiUpdate, account_conn: EditorConn):
         raise HTTPException(status_code=404, detail="KPI no encontrado")
     updates = body.model_dump(exclude_none=True)
     merged = {**existing, **updates}
-    areas_list = merged.get("areas_list", existing["areas_list"])
-    if "areas" in updates:
-        areas_list = updates["areas"]
-    kpis_ref_list = merged.get("kpis_ref_list", [])
-    if "kpis_ref" in updates:
-        kpis_ref_list = updates["kpis_ref"]
-    formula_list = existing.get("formula_list", [])
-    if "formula" in updates:
-        formula_list = [item.model_dump() if hasattr(item, "model_dump") else item for item in updates["formula"]]
+    areas_list = updates["areas"] if "areas" in updates else existing["areas_list"]
+    categorias_list = updates["categorias"] if "categorias" in updates else existing["categorias_list"]
     db_module.upsert_kpi(
         conn, account["db_blob"], kpi_id,
-        merged["label"], merged["emoji"], merged["tipo"],
-        merged["orden"], areas_list, merged.get("compensacion_filtro"),
-        kpis_ref_list, formula_list,
+        merged["label"], merged["emoji"], merged["orden"], areas_list, categorias_list,
     )
     kpis = db_module.get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)

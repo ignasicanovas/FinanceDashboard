@@ -248,6 +248,12 @@ def _init_account_db(conn: sqlite3.Connection):
     except sqlite3.OperationalError:
         pass
 
+    try:
+        conn.execute("ALTER TABLE kpi_config ADD COLUMN categorias TEXT DEFAULT ''")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
     if conn.execute("SELECT COUNT(*) FROM kpi_config").fetchone()[0] == 0:
         default_kpis = [
             ("Gastos corrientes", "🛒", "gasto", 1, "Gastos corrientes", None),
@@ -362,6 +368,14 @@ def update_transaction(conn: sqlite3.Connection, txn_id: str, blob_name: str, **
 
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     conn.execute(f"UPDATE transactions SET {set_clause} WHERE id = ?", [*updates.values(), txn_id])
+
+    # Propagar cambio de categoría a reembolsos vinculados a este gasto
+    if "categoria" in updates:
+        conn.execute(
+            "UPDATE transactions SET categoria = ? WHERE compensacion_de = ? AND compensacion_tipo = 'reembolso'",
+            [updates["categoria"], txn_id],
+        )
+
     conn.commit()
     _upload_db(blob_name)
     return True
@@ -626,39 +640,33 @@ def test_rule(conn: sqlite3.Connection, keyword: str) -> list[dict]:
 # ── KPI CONFIG ────────────────────────────────────────────────
 
 def get_kpi_config(conn: sqlite3.Connection) -> list[dict]:
-    import json as _json
     rows = conn.execute("SELECT * FROM kpi_config ORDER BY orden, id").fetchall()
     result = []
     for r in rows:
         d = dict(r)
         d["areas_list"] = [a.strip() for a in (d.get("areas") or "").split(",") if a.strip()]
-        d["kpis_ref_list"] = [int(x) for x in (d.get("kpis_ref") or "").split(",") if x.strip()]
-        formula_raw = d.get("formula")
-        d["formula_list"] = _json.loads(formula_raw) if formula_raw else []
+        d["categorias_list"] = [c.strip() for c in (d.get("categorias") or "").split(",") if c.strip()]
         result.append(d)
     return result
 
 
 def upsert_kpi(conn: sqlite3.Connection, blob_name: str, kpi_id: Optional[int],
-               label: str, emoji: str, tipo: str, orden: int,
-               areas: list[str], compensacion_filtro: Optional[str] = None,
-               kpis_ref: list[int] = None, formula: list[dict] = None) -> int:
-    import json as _json
+               label: str, emoji: str, orden: int,
+               areas: list[str], categorias: list[str] = None) -> int:
     areas_csv = ",".join(areas)
-    kpis_ref_csv = ",".join(str(x) for x in (kpis_ref or []))
-    formula_json = _json.dumps(formula) if formula else None
+    categorias_csv = ",".join(categorias or [])
     if kpi_id:
         conn.execute(
-            "UPDATE kpi_config SET label=?, emoji=?, tipo=?, orden=?, areas=?, compensacion_filtro=?, kpis_ref=?, formula=? WHERE id=?",
-            (label, emoji, tipo, orden, areas_csv, compensacion_filtro, kpis_ref_csv, formula_json, kpi_id)
+            "UPDATE kpi_config SET label=?, emoji=?, orden=?, areas=?, categorias=? WHERE id=?",
+            (label, emoji, orden, areas_csv, categorias_csv, kpi_id)
         )
         conn.commit()
         _upload_db(blob_name)
         return kpi_id
     else:
         cursor = conn.execute(
-            "INSERT INTO kpi_config (label, emoji, tipo, orden, areas, compensacion_filtro, kpis_ref, formula) VALUES (?,?,?,?,?,?,?,?)",
-            (label, emoji, tipo, orden, areas_csv, compensacion_filtro, kpis_ref_csv, formula_json)
+            "INSERT INTO kpi_config (label, emoji, orden, areas, categorias) VALUES (?,?,?,?,?)",
+            (label, emoji, orden, areas_csv, categorias_csv)
         )
         conn.commit()
         _upload_db(blob_name)
@@ -1090,101 +1098,52 @@ def compute_kpi_values(conn: sqlite3.Connection,
                         area: Optional[str] = None,
                         categoria: Optional[str] = None,
                         tag: Optional[str] = None) -> dict:
-    """Calcula el valor actual de todos los KPIs configurados. Dos pasadas: primero
-    los KPIs de datos (gasto/ingreso/balance/ahorro), luego los de tipo 'neto'."""
+    """Calcula el valor de todos los KPIs como balance (SUM importe) filtrado por
+    áreas y/o categorías seleccionadas. Sin tipo: siempre ingresos − gastos."""
     kpis = get_kpi_config(conn)
     result: dict = {}
     join = "LEFT JOIN (SELECT nombre, color, emoji, supercategoria FROM categories GROUP BY nombre) c ON t.categoria = c.nombre"
 
     def _compute_single(kpi: dict) -> float:
         areas_list = kpi.get("areas_list", [])
-        tipo = kpi.get("tipo", "gasto")
-        comp_filtro = kpi.get("compensacion_filtro")
+        categorias_list = kpi.get("categorias_list", [])
 
-        base = "(t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
+        conds = ["(t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"]
         params: list = []
 
         if fecha_desde:
-            base += f" AND {_FECHA_EF} >= ?"
+            conds.append(f"{_FECHA_EF} >= ?")
             params.append(fecha_desde)
         if fecha_hasta:
-            base += f" AND {_FECHA_EF} <= ?"
+            conds.append(f"{_FECHA_EF} <= ?")
             params.append(fecha_hasta)
 
-        if areas_list and tipo != "personalizado":
-            placeholders = ",".join("?" for _ in areas_list)
-            base += f" AND c.supercategoria IN ({placeholders})"
-            params.extend(areas_list)
+        # Filtro de áreas y/o categorías propias del KPI (unión)
+        if areas_list or categorias_list:
+            sub: list = []
+            if areas_list:
+                ph = ",".join("?" for _ in areas_list)
+                sub.append(f"c.supercategoria IN ({ph})")
+                params.extend(areas_list)
+            if categorias_list:
+                ph = ",".join("?" for _ in categorias_list)
+                sub.append(f"t.categoria IN ({ph})")
+                params.extend(categorias_list)
+            conds.append(f"({' OR '.join(sub)})")
 
-        if comp_filtro == "excluir_compensaciones" and tipo != "personalizado":
-            base += " AND t.compensacion_tipo IS NULL"
-
-        # Filtros dinámicos del usuario (se añaden sobre los del KPI)
+        # Filtros dinámicos del usuario (fecha/área/categoría/tag del UI)
+        base = " AND ".join(conds)
         base, params = _multi_in("c.supercategoria", area, base, params)
         base, params = _multi_in("t.categoria", categoria, base, params)
         base, params = _tag_filter(tag, base, params)
 
-        if tipo == "personalizado":
-            formula_list = kpi.get("formula_list", [])
-            total = 0.0
-            for item in formula_list:
-                item_tipo = item.get("tipo")
-                item_nombre = item.get("nombre")
-                item_signo = item.get("signo", "+")
-                if item_tipo == "area":
-                    item_conds = base + " AND c.supercategoria = ?"
-                else:
-                    item_conds = base + " AND t.categoria = ?"
-                item_params_ = params + [item_nombre]
-                row = conn.execute(
-                    f"SELECT SUM(t.importe) FROM transactions t {join} WHERE {item_conds}",
-                    item_params_
-                ).fetchone()
-                val = float(row[0] or 0)
-                total += val if item_signo == "+" else -val
-            return total
+        row = conn.execute(
+            f"SELECT SUM(t.importe) FROM transactions t {join} WHERE {base}", params
+        ).fetchone()
+        return float(row[0] or 0)
 
-        if tipo == "gasto":
-            w = f"WHERE {base} AND t.importe < 0 AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
-            row = conn.execute(f"SELECT ABS(SUM(t.importe)) FROM transactions t {join} {w}", params).fetchone()
-            return float(row[0] or 0)
-
-        elif tipo == "ahorro":
-            w = f"WHERE {base} AND t.importe < 0 AND t.desde_ahorro = 1"
-            row = conn.execute(f"SELECT ABS(SUM(t.importe)) FROM transactions t {join} {w}", params).fetchone()
-            return float(row[0] or 0)
-
-        elif tipo == "ingreso":
-            w = f"WHERE {base} AND t.importe > 0 AND (t.compensacion_tipo IS NULL OR t.compensacion_tipo != 'reembolso')"
-            row = conn.execute(f"SELECT SUM(t.importe) FROM transactions t {join} {w}", params).fetchone()
-            return float(row[0] or 0)
-
-        else:  # balance
-            w = f"WHERE {base} AND NOT (t.importe > 0 AND (t.compensacion_tipo = 'ahorro' OR t.compensacion_tipo = 'reembolso'))"
-            row = conn.execute(f"SELECT SUM(t.importe) FROM transactions t {join} {w}", params).fetchone()
-            return float(row[0] or 0)
-
-    # Pasada 1: tipos de datos (no neto)
     for kpi in kpis:
-        if kpi.get("tipo") not in ("neto",):
-            result[kpi["id"]] = _compute_single(kpi)
-
-    # Pasada 2: tipo neto — combina valores ya calculados
-    kpi_by_id = {k["id"]: k for k in kpis}
-    for kpi in kpis:
-        if kpi.get("tipo") == "neto":
-            total = 0.0
-            for ref_id in kpi.get("kpis_ref_list", []):
-                ref = kpi_by_id.get(ref_id)
-                if ref is None:
-                    continue
-                val = result.get(ref_id, 0.0)
-                # Los gastos/ahorro restan; ingresos y balance suman
-                if ref["tipo"] in ("gasto", "ahorro"):
-                    total -= val
-                else:
-                    total += val
-            result[kpi["id"]] = total
+        result[kpi["id"]] = _compute_single(kpi)
 
     return result
 
@@ -1195,21 +1154,16 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
                           area: Optional[str] = None,
                           categoria: Optional[str] = None,
                           tag: Optional[str] = None) -> list:
-    """Devuelve las transacciones individuales que computan en un KPI concreto."""
+    """Devuelve todas las transacciones (ingresos y gastos) que computan en un KPI."""
     kpis = get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)
     if not kpi:
         return []
 
-    tipo = kpi.get("tipo", "gasto")
     areas_list = kpi.get("areas_list", [])
-    comp_filtro = kpi.get("compensacion_filtro")
+    categorias_list = kpi.get("categorias_list", [])
 
-    # Los KPIs de tipo 'neto' y 'personalizado' no tienen transacciones propias
-    if tipo in ("neto", "personalizado"):
-        return []
-
-    base = (
+    select = (
         "SELECT t.id, t.fecha, t.comercio, t.concepto, t.importe, "
         "t.categoria, c.color AS categoria_color, c.emoji AS categoria_emoji, "
         "t.compensacion_tipo, t.desde_ahorro "
@@ -1227,29 +1181,24 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
         where_parts.append(f"{_FECHA_EF} <= ?")
         params.append(fecha_hasta)
 
-    if areas_list:
-        placeholders = ",".join("?" for _ in areas_list)
-        where_parts.append(f"c.supercategoria IN ({placeholders})")
-        params.extend(areas_list)
-
-    if comp_filtro == "excluir_compensaciones":
-        where_parts.append("t.compensacion_tipo IS NULL")
-
-    if tipo == "gasto":
-        where_parts += ["t.importe < 0", "(t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"]
-    elif tipo == "ahorro":
-        where_parts += ["t.importe < 0", "t.desde_ahorro = 1"]
-    elif tipo == "ingreso":
-        where_parts += ["t.importe > 0", "(t.compensacion_tipo IS NULL OR t.compensacion_tipo != 'reembolso')"]
-    else:  # balance
-        where_parts.append("NOT (t.importe > 0 AND (t.compensacion_tipo = 'ahorro' OR t.compensacion_tipo = 'reembolso'))")
+    if areas_list or categorias_list:
+        sub: list = []
+        if areas_list:
+            ph = ",".join("?" for _ in areas_list)
+            sub.append(f"c.supercategoria IN ({ph})")
+            params.extend(areas_list)
+        if categorias_list:
+            ph = ",".join("?" for _ in categorias_list)
+            sub.append(f"t.categoria IN ({ph})")
+            params.extend(categorias_list)
+        where_parts.append(f"({' OR '.join(sub)})")
 
     where_str = " AND ".join(where_parts)
     where_str, params = _multi_in("c.supercategoria", area, where_str, params)
     where_str, params = _multi_in("t.categoria", categoria, where_str, params)
     where_str, params = _tag_filter(tag, where_str, params)
 
-    sql = base + " WHERE " + where_str + " ORDER BY t.fecha DESC"
+    sql = select + " WHERE " + where_str + " ORDER BY t.fecha DESC"
     import pandas as pd
     df = pd.read_sql_query(sql, conn, params=params)
     return df.to_dict(orient="records")
