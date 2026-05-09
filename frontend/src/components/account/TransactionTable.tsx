@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreHorizontal, ArrowLeft, ArrowRight, Banknote, RefreshCw, CalendarArrowUp } from 'lucide-react'
+import { MoreHorizontal, ArrowLeft, ArrowRight, Banknote, RefreshCw, CalendarArrowUp, CalendarArrowDown, CalendarX } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -101,6 +101,12 @@ export default function TransactionTable({
                           +1 mes
                         </Badge>
                       )}
+                      {txn.diferir_mes === -1 && (
+                        <Badge variant="secondary" className="text-xs flex items-center gap-1 shrink-0 text-purple-600">
+                          <CalendarArrowDown className="w-3 h-3" />
+                          -1 mes
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums whitespace-nowrap">
@@ -135,8 +141,22 @@ export default function TransactionTable({
                           onClick={() => updateTxn.mutate({ txnId: txn.id, data: { diferir_mes: txn.diferir_mes === 1 ? 0 : 1 } })}
                         >
                           <CalendarArrowUp className="w-4 h-4 mr-2" />
-                          {txn.diferir_mes === 1 ? 'Quitar aplazamiento de mes' : 'Aplazar al mes siguiente'}
+                          {txn.diferir_mes === 1 ? 'Quitar aplazamiento (mes siguiente)' : 'Mover al mes siguiente'}
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => updateTxn.mutate({ txnId: txn.id, data: { diferir_mes: txn.diferir_mes === -1 ? 0 : -1 } })}
+                        >
+                          <CalendarArrowDown className="w-4 h-4 mr-2" />
+                          {txn.diferir_mes === -1 ? 'Quitar aplazamiento (mes anterior)' : 'Mover al mes anterior'}
+                        </DropdownMenuItem>
+                        {(txn.diferir_mes === 1 || txn.diferir_mes === -1) && (
+                          <DropdownMenuItem
+                            onClick={() => updateTxn.mutate({ txnId: txn.id, data: { diferir_mes: 0 } })}
+                          >
+                            <CalendarX className="w-4 h-4 mr-2" />
+                            Quitar aplazamiento
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => setCompensationTxn(txn)}>
                           Gestionar compensación
                         </DropdownMenuItem>
