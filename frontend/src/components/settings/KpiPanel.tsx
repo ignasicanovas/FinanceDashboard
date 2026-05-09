@@ -68,6 +68,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
       orden: kpi.orden,
       areas: kpi.areas_list,
       categorias: kpi.categorias_list,
+      desde_ahorro: kpi.desde_ahorro ?? 0,
     })
     setShowNew(true)
   }
@@ -81,6 +82,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
         orden: form.orden,
         areas: form.areas,
         categorias: form.categorias,
+        desde_ahorro: form.desde_ahorro,
       }
       if (editingKpi) {
         await updateKpi.mutateAsync({ kpiId: editingKpi.id, data: payload })
@@ -189,7 +191,10 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">{kpi.label}</p>
                 <div className="flex gap-1 mt-0.5 flex-wrap">
-                  {tags.length === 0
+                  {kpi.desde_ahorro === 1 && (
+                    <Badge variant="outline" className="text-xs text-indigo-600 border-indigo-300">💡 Ahorro</Badge>
+                  )}
+                  {tags.length === 0 && !kpi.desde_ahorro
                     ? <Badge variant="secondary" className="text-xs">Todas las categorías</Badge>
                     : tags.slice(0, 4).map((t) => (
                         <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
@@ -253,6 +258,23 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
                 <span className="ml-1 text-xs font-normal text-gray-400">(vacío = todas)</span>
               </Label>
               <div className="mt-2 border rounded-xl overflow-y-auto" style={{ maxHeight: 260 }}>
+                {/* Opción especial: gastos de ahorro */}
+                <div className={areaGroups.length > 0 ? "border-b" : ""}>
+                  <div
+                    className="flex items-center gap-2 px-3 py-2 bg-indigo-50 cursor-pointer select-none"
+                    onClick={() => setForm((f) => ({ ...f, desde_ahorro: f.desde_ahorro ? 0 : 1 }))}
+                  >
+                    <Checkbox
+                      checked={form.desde_ahorro === 1}
+                      onCheckedChange={() => setForm((f) => ({ ...f, desde_ahorro: f.desde_ahorro ? 0 : 1 }))}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span className="text-xs font-semibold text-indigo-700 flex-1">💡 Gastos de ahorro</span>
+                    {form.desde_ahorro === 1 && (
+                      <span className="text-[10px] text-indigo-400 italic">incluidos</span>
+                    )}
+                  </div>
+                </div>
                 {areaGroups.map(({ area, cats }, idx) => {
                   const areaChecked = form.areas.includes(area)
                   return (

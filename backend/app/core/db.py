@@ -254,6 +254,12 @@ def _init_account_db(conn: sqlite3.Connection):
     except sqlite3.OperationalError:
         pass
 
+    try:
+        conn.execute("ALTER TABLE kpi_config ADD COLUMN desde_ahorro INTEGER DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
     if conn.execute("SELECT COUNT(*) FROM kpi_config").fetchone()[0] == 0:
         default_kpis = [
             ("Gastos corrientes", "🛒", "gasto", 1, "Gastos corrientes", None),
@@ -652,21 +658,22 @@ def get_kpi_config(conn: sqlite3.Connection) -> list[dict]:
 
 def upsert_kpi(conn: sqlite3.Connection, blob_name: str, kpi_id: Optional[int],
                label: str, emoji: str, orden: int,
-               areas: list[str], categorias: list[str] = None) -> int:
+               areas: list[str], categorias: list[str] = None,
+               desde_ahorro: int = 0) -> int:
     areas_csv = ",".join(areas)
     categorias_csv = ",".join(categorias or [])
     if kpi_id:
         conn.execute(
-            "UPDATE kpi_config SET label=?, emoji=?, orden=?, areas=?, categorias=? WHERE id=?",
-            (label, emoji, orden, areas_csv, categorias_csv, kpi_id)
+            "UPDATE kpi_config SET label=?, emoji=?, orden=?, areas=?, categorias=?, desde_ahorro=? WHERE id=?",
+            (label, emoji, orden, areas_csv, categorias_csv, desde_ahorro, kpi_id)
         )
         conn.commit()
         _upload_db(blob_name)
         return kpi_id
     else:
         cursor = conn.execute(
-            "INSERT INTO kpi_config (label, emoji, orden, areas, categorias) VALUES (?,?,?,?,?)",
-            (label, emoji, orden, areas_csv, categorias_csv)
+            "INSERT INTO kpi_config (label, emoji, orden, areas, categorias, desde_ahorro) VALUES (?,?,?,?,?,?)",
+            (label, emoji, orden, areas_csv, categorias_csv, desde_ahorro)
         )
         conn.commit()
         _upload_db(blob_name)
@@ -1107,6 +1114,7 @@ def compute_kpi_values(conn: sqlite3.Connection,
     def _compute_single(kpi: dict) -> float:
         areas_list = kpi.get("areas_list", [])
         categorias_list = kpi.get("categorias_list", [])
+        kpi_desde_ahorro = int(kpi.get("desde_ahorro") or 0)
 
         conds = ["(t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"]
         params: list = []
@@ -1118,8 +1126,8 @@ def compute_kpi_values(conn: sqlite3.Connection,
             conds.append(f"{_FECHA_EF} <= ?")
             params.append(fecha_hasta)
 
-        # Filtro de áreas y/o categorías propias del KPI (unión)
-        if areas_list or categorias_list:
+        # Filtro de áreas, categorías y/o gastos de ahorro del KPI (unión)
+        if areas_list or categorias_list or kpi_desde_ahorro:
             sub: list = []
             if areas_list:
                 ph = ",".join("?" for _ in areas_list)
@@ -1129,6 +1137,8 @@ def compute_kpi_values(conn: sqlite3.Connection,
                 ph = ",".join("?" for _ in categorias_list)
                 sub.append(f"t.categoria IN ({ph})")
                 params.extend(categorias_list)
+            if kpi_desde_ahorro:
+                sub.append("t.desde_ahorro = 1")
             conds.append(f"({' OR '.join(sub)})")
 
         # Filtros dinámicos del usuario (fecha/área/categoría/tag del UI)
@@ -1162,6 +1172,7 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
 
     areas_list = kpi.get("areas_list", [])
     categorias_list = kpi.get("categorias_list", [])
+    kpi_desde_ahorro = int(kpi.get("desde_ahorro") or 0)
 
     select = (
         "SELECT t.id, t.fecha, t.comercio, t.concepto, t.importe, "
@@ -1181,7 +1192,7 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
         where_parts.append(f"{_FECHA_EF} <= ?")
         params.append(fecha_hasta)
 
-    if areas_list or categorias_list:
+    if areas_list or categorias_list or kpi_desde_ahorro:
         sub: list = []
         if areas_list:
             ph = ",".join("?" for _ in areas_list)
@@ -1191,6 +1202,8 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
             ph = ",".join("?" for _ in categorias_list)
             sub.append(f"t.categoria IN ({ph})")
             params.extend(categorias_list)
+        if kpi_desde_ahorro:
+            sub.append("t.desde_ahorro = 1")
         where_parts.append(f"({' OR '.join(sub)})")
 
     where_str = " AND ".join(where_parts)
