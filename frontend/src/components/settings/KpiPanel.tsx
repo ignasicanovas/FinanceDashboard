@@ -43,7 +43,6 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
   const deleteKpi = useDeleteKpi(accountId)
   const reorderKpis = useReorderKpis(accountId)
 
-  // Agrupa categorías por área, excluyendo "No computable"
   const areaGroups = useMemo(() =>
     areas
       .filter((a) => a !== 'No computable')
@@ -103,7 +102,6 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     toast.success('KPI eliminado')
   }
 
-  // Selección de área: toggle. Si se activa, elimina las categorías individuales de esa área.
   const toggleArea = (area: string) => {
     setForm((f) => {
       const areaSelected = f.areas.includes(area)
@@ -120,11 +118,9 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     })
   }
 
-  // Selección de categoría individual: toggle. Si el área está seleccionada, la expande.
   const toggleCategoria = (nombre: string, supercategoria: string) => {
     setForm((f) => {
       if (f.areas.includes(supercategoria)) {
-        // Expandir área: seleccionar todas excepto la que se desmarca
         const catNombres = categories
           .filter((c) => c.supercategoria === supercategoria && c.nombre !== nombre)
           .map((c) => c.nombre)
@@ -146,7 +142,6 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     })
   }
 
-  // Drag & drop para reordenar la lista de KPIs
   const handleDragStart = (id: number) => { dragId.current = id }
   const handleDragOver = (e: React.DragEvent, id: number) => { e.preventDefault(); setDragOverId(id) }
   const handleDragEnd = () => { dragId.current = null; setDragOverId(null) }
@@ -166,15 +161,10 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
     }
   }
 
-  const selectionSummary = (kpi: Kpi) => {
-    if (kpi.areas_list.length === 0 && kpi.categorias_list.length === 0) return null
-    return [...kpi.areas_list, ...kpi.categorias_list]
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">Indicadores de balance por categorías.</p>
+        <p className="text-sm text-gray-600">Indicadores de balance (ingresos − gastos) por categorías.</p>
         <Button size="sm" variant="outline" onClick={openNew}>
           <Plus className="w-4 h-4 mr-1" />
           Nuevo KPI
@@ -183,7 +173,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
 
       <div className="space-y-2">
         {kpis.map((kpi) => {
-          const tags = selectionSummary(kpi)
+          const tags = [...kpi.areas_list, ...kpi.categorias_list]
           return (
             <div
               key={kpi.id}
@@ -199,13 +189,13 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">{kpi.label}</p>
                 <div className="flex gap-1 mt-0.5 flex-wrap">
-                  {tags === null
+                  {tags.length === 0
                     ? <Badge variant="secondary" className="text-xs">Todas las categorías</Badge>
                     : tags.slice(0, 4).map((t) => (
                         <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
                       ))
                   }
-                  {tags && tags.length > 4 && (
+                  {tags.length > 4 && (
                     <Badge variant="outline" className="text-xs text-gray-400">+{tags.length - 4}</Badge>
                   )}
                 </div>
@@ -232,7 +222,6 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
             <DialogTitle>{editingKpi ? 'Editar KPI' : 'Nuevo KPI'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Emoji */}
             <div>
               <Label>Emoji</Label>
               <div className="flex gap-1.5 flex-wrap mt-1">
@@ -248,7 +237,6 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
               </div>
             </div>
 
-            {/* Etiqueta */}
             <div>
               <Label>Etiqueta</Label>
               <Input
@@ -259,18 +247,16 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
               />
             </div>
 
-            {/* Selector de categorías agrupado por área */}
             <div>
               <Label>
                 Categorías incluidas
                 <span className="ml-1 text-xs font-normal text-gray-400">(vacío = todas)</span>
               </Label>
-              <div className="mt-2 border rounded-xl overflow-y-auto space-y-0" style={{ maxHeight: 260 }}>
+              <div className="mt-2 border rounded-xl overflow-y-auto" style={{ maxHeight: 260 }}>
                 {areaGroups.map(({ area, cats }, idx) => {
                   const areaChecked = form.areas.includes(area)
                   return (
                     <div key={area} className={idx > 0 ? 'border-t' : ''}>
-                      {/* Fila de área */}
                       <div
                         className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer select-none"
                         onClick={() => toggleArea(area)}
@@ -287,9 +273,7 @@ export default function KpiPanel({ accountId }: KpiPanelProps) {
                           <span className="text-[10px] text-gray-400 italic">todas</span>
                         )}
                       </div>
-
-                      {/* Categorías individuales (visibles solo si el área no está seleccionada) */}
-                      {!areaChecked && (
+                      {!areaChecked && cats.length > 0 && (
                         <div className="px-3 py-1.5 space-y-1">
                           {cats.map((cat) => {
                             const catChecked = form.categorias.includes(cat.nombre)

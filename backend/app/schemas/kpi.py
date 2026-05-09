@@ -25,7 +25,7 @@ class KpiOut(BaseModel):
     orden: int
     areas: str
     areas_list: list[str]
-    categorias: str = ''
+    categorias: str = ""
     categorias_list: list[str] = []
 
 
