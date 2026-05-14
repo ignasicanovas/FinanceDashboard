@@ -24,7 +24,7 @@ export default function AccountPage() {
     categoria: searchParams.get('cat') || undefined,
     area: searchParams.get('area') || undefined,
     tag: searchParams.get('tag') || undefined,
-    desde_ahorro: searchParams.get('ahorro') === '1' ? 1 : undefined,
+    desde_ahorro: searchParams.get('ahorro') === '1' ? 1 : searchParams.get('ahorro') === '0' ? 0 : undefined,
     paycheck_keyword: searchParams.get('nomina_kw') || undefined,
     search: searchParams.get('q') || undefined,
     page: Number(searchParams.get('page')) || 1,
@@ -38,7 +38,7 @@ export default function AccountPage() {
       if (f.categoria) prev.set('cat', f.categoria); else prev.delete('cat')
       if (f.area) prev.set('area', f.area); else prev.delete('area')
       if (f.tag) prev.set('tag', f.tag); else prev.delete('tag')
-      if (f.desde_ahorro) prev.set('ahorro', '1'); else prev.delete('ahorro')
+      if (f.desde_ahorro !== undefined) prev.set('ahorro', String(f.desde_ahorro)); else prev.delete('ahorro')
       if (f.paycheck_keyword) prev.set('nomina_kw', f.paycheck_keyword); else prev.delete('nomina_kw')
       if (f.search) prev.set('q', f.search); else prev.delete('q')
       if (f.page && f.page > 1) prev.set('page', String(f.page)); else prev.delete('page')
@@ -95,6 +95,7 @@ export default function AccountPage() {
               selectedAreas={(filters.area || '').split(',').filter(Boolean)}
               selectedCats={(filters.categoria || '').split(',').filter(Boolean)}
               selectedTags={(filters.tag || '').split(',').filter(Boolean)}
+              desdeAhorro={filters.desde_ahorro}
               onDateChange={onDateChange}
               onFilterChange={(areas, cats, tags) => {
                 setSearchParams((prev) => {
@@ -104,6 +105,13 @@ export default function AccountPage() {
                   if (area) prev.set('area', area); else prev.delete('area')
                   if (cat) prev.set('cat', cat); else prev.delete('cat')
                   if (tag) prev.set('tag', tag); else prev.delete('tag')
+                  prev.delete('page')
+                  return prev
+                })
+              }}
+              onAhorroChange={(value) => {
+                setSearchParams((prev) => {
+                  if (value !== undefined) prev.set('ahorro', String(value)); else prev.delete('ahorro')
                   prev.delete('page')
                   return prev
                 })

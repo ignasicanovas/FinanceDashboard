@@ -14,12 +14,13 @@ interface Props {
   area?: string
   categoria?: string
   tag?: string
+  desdeAhorro?: number
   onDrilldown?: (target: DrilldownTarget) => void
 }
 
-export default function CategoryPieChart({ accountId, fecha_desde, fecha_hasta, area, categoria, tag, onDrilldown }: Props) {
+export default function CategoryPieChart({ accountId, fecha_desde, fecha_hasta, area, categoria, tag, desdeAhorro, onDrilldown }: Props) {
   const [mode, setMode] = useState<'categoria' | 'area'>('categoria')
-  const range = { fecha_desde, fecha_hasta, area, categoria, tag }
+  const range = { fecha_desde, fecha_hasta, area, categoria, tag, desde_ahorro: desdeAhorro }
 
   const { data: catData = [], isLoading: loadingCat } = useByCategory(accountId, range)
   const { data: areaData = [], isLoading: loadingArea } = useByArea(accountId, range)

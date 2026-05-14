@@ -71,7 +71,8 @@ def kpi_transactions(
     area: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_kpi_transactions(conn, kpi_id, fecha_desde, fecha_hasta, area, categoria, tag)
+    data = db_module.get_kpi_transactions(conn, kpi_id, fecha_desde, fecha_hasta, area, categoria, tag, desde_ahorro)
     return {"data": data}

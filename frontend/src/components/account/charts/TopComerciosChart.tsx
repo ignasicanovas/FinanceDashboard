@@ -12,18 +12,20 @@ interface Props {
   area?: string
   categoria?: string
   tag?: string
+  desdeAhorro?: number
   onDrilldown?: (target: DrilldownTarget) => void
 }
 
 const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#84cc16', '#22c55e']
 
-export default function TopComerciósChart({ accountId, fechaDesde, fechaHasta, area, categoria, tag, onDrilldown }: Props) {
+export default function TopComerciósChart({ accountId, fechaDesde, fechaHasta, area, categoria, tag, desdeAhorro, onDrilldown }: Props) {
   const { data = [], isLoading } = useTopComercios(accountId, {
     fecha_desde: fechaDesde,
     fecha_hasta: fechaHasta,
     area,
     categoria,
     tag,
+    desde_ahorro: desdeAhorro,
   })
 
   if (isLoading) return <div className="h-48 bg-gray-50 rounded-xl animate-pulse" />

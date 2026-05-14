@@ -17,11 +17,12 @@ interface Props {
   area?: string
   categoria?: string
   tag?: string
+  desdeAhorro?: number
   onDrilldown?: (target: DrilldownTarget) => void
 }
 
-export default function AreaBreakdownChart({ accountId, fechaDesde, fechaHasta, area, categoria, tag, onDrilldown }: Props) {
-  const { data = [], isLoading } = useByArea(accountId, { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, area, categoria, tag })
+export default function AreaBreakdownChart({ accountId, fechaDesde, fechaHasta, area, categoria, tag, desdeAhorro, onDrilldown }: Props) {
+  const { data = [], isLoading } = useByArea(accountId, { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, area, categoria, tag, desde_ahorro: desdeAhorro })
 
   const expenses = data.filter((d) => d.neto < 0).map((d) => ({
     ...d,

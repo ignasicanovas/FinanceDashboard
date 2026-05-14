@@ -14,6 +14,7 @@ interface DateRange {
   area?: string
   categoria?: string
   tag?: string
+  desde_ahorro?: number
 }
 
 export interface TopComercioItem {

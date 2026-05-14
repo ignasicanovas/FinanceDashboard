@@ -312,8 +312,11 @@ def get_transactions(
         params.extend([f"%{search.lower()}%", f"%{search.lower()}%"])
     where, params = _tag_filter(tag, where, params)
     if desde_ahorro is not None:
-        where += " AND t.desde_ahorro = ?"
-        params.append(desde_ahorro)
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
 
     count_sql = f"""
         SELECT COUNT(*) FROM transactions t
@@ -899,7 +902,8 @@ def get_monthly_summary(conn: sqlite3.Connection,
                          fecha_hasta: Optional[str] = None,
                          area: Optional[str] = None,
                          categoria: Optional[str] = None,
-                         tag: Optional[str] = None) -> list[dict]:
+                         tag: Optional[str] = None,
+                         desde_ahorro: Optional[int] = None) -> list[dict]:
     import pandas as pd
     where = "WHERE (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '')"
     params: list = []
@@ -912,6 +916,12 @@ def get_monthly_summary(conn: sqlite3.Connection,
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
     df = pd.read_sql_query(f"""
         SELECT strftime('%Y-%m', {_FECHA_EF}) as mes,
                SUM(CASE WHEN t.importe > 0 AND (t.compensacion_tipo IS NULL OR (t.compensacion_tipo != 'ahorro' AND t.compensacion_tipo != 'reembolso')) THEN t.importe ELSE 0 END) as ingresos,
@@ -930,7 +940,8 @@ def get_by_category(conn: sqlite3.Connection,
                     fecha_hasta: Optional[str] = None,
                     area: Optional[str] = None,
                     tag: Optional[str] = None,
-                    categoria: Optional[str] = None) -> list[dict]:
+                    categoria: Optional[str] = None,
+                    desde_ahorro: Optional[int] = None) -> list[dict]:
     import pandas as pd
     where = """WHERE (
         (t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = ''))
@@ -946,6 +957,12 @@ def get_by_category(conn: sqlite3.Connection,
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
     df = pd.read_sql_query(f"""
         SELECT COALESCE(NULLIF(t.categoria,''), 'Sin categoría') as categoria,
                SUM(t.importe) as neto,
@@ -965,7 +982,8 @@ def get_by_area(conn: sqlite3.Connection,
                 fecha_hasta: Optional[str] = None,
                 area: Optional[str] = None,
                 categoria: Optional[str] = None,
-                tag: Optional[str] = None) -> list[dict]:
+                tag: Optional[str] = None,
+                desde_ahorro: Optional[int] = None) -> list[dict]:
     import pandas as pd
     where = """WHERE (
         (t.importe < 0 AND (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = ''))
@@ -981,6 +999,12 @@ def get_by_area(conn: sqlite3.Connection,
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
     df = pd.read_sql_query(f"""
         SELECT COALESCE(c.supercategoria, 'Otros') as area,
                SUM(t.importe) as neto
@@ -997,7 +1021,8 @@ def get_monthly_by_category(conn: sqlite3.Connection,
                               fecha_desde: Optional[str] = None,
                               fecha_hasta: Optional[str] = None,
                               area: Optional[str] = None,
-                              tag: Optional[str] = None) -> list[dict]:
+                              tag: Optional[str] = None,
+                              desde_ahorro: Optional[int] = None) -> list[dict]:
     import pandas as pd
     where = "WHERE (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '') AND t.importe < 0"
     params: list = []
@@ -1009,6 +1034,12 @@ def get_monthly_by_category(conn: sqlite3.Connection,
         params.append(fecha_hasta)
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _tag_filter(tag, where, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
     df = pd.read_sql_query(f"""
         SELECT strftime('%Y-%m', {_FECHA_EF}) as mes,
                COALESCE(NULLIF(t.categoria,''), 'Sin categoría') as categoria,
@@ -1027,7 +1058,8 @@ def get_monthly_by_area(conn: sqlite3.Connection,
                          fecha_desde: Optional[str] = None,
                          fecha_hasta: Optional[str] = None,
                          categoria: Optional[str] = None,
-                         tag: Optional[str] = None) -> list[dict]:
+                         tag: Optional[str] = None,
+                         desde_ahorro: Optional[int] = None) -> list[dict]:
     import pandas as pd
     where = "WHERE (t.categoria != 'No computable' OR t.categoria IS NULL OR t.categoria = '') AND t.importe < 0"
     params: list = []
@@ -1039,6 +1071,12 @@ def get_monthly_by_area(conn: sqlite3.Connection,
         params.append(fecha_hasta)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
     df = pd.read_sql_query(f"""
         SELECT strftime('%Y-%m', {_FECHA_EF}) as mes,
                COALESCE(c.supercategoria, 'Otros') as area,
@@ -1058,12 +1096,12 @@ def get_top_comercios(conn: sqlite3.Connection,
                        limit: int = 10,
                        area: Optional[str] = None,
                        categoria: Optional[str] = None,
-                       tag: Optional[str] = None) -> list[dict]:
+                       tag: Optional[str] = None,
+                       desde_ahorro: Optional[int] = 0) -> list[dict]:
     """Top establecimientos por gasto total (excluye 'No computable')."""
     import pandas as pd
     where = (
         "WHERE t.importe < 0"
-        " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
         " AND COALESCE(t.categoria, '') != 'No computable'"
         " AND t.comercio IS NOT NULL AND t.comercio != ''"
     )
@@ -1077,6 +1115,12 @@ def get_top_comercios(conn: sqlite3.Connection,
     where, params = _multi_in("c.supercategoria", area, where, params)
     where, params = _multi_in("t.categoria", categoria, where, params)
     where, params = _tag_filter(tag, where, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
     df = pd.read_sql_query(f"""
         SELECT t.comercio as nombre,
                ABS(SUM(t.importe)) - COALESCE(SUM(reimb.total_reembolso), 0) as gasto,
@@ -1104,7 +1148,8 @@ def compute_kpi_values(conn: sqlite3.Connection,
                         fecha_hasta: Optional[str] = None,
                         area: Optional[str] = None,
                         categoria: Optional[str] = None,
-                        tag: Optional[str] = None) -> dict:
+                        tag: Optional[str] = None,
+                        desde_ahorro: Optional[int] = None) -> dict:
     """Calcula el valor de todos los KPIs como balance (SUM importe) filtrado por
     áreas y/o categorías seleccionadas. Sin tipo: siempre ingresos − gastos."""
     kpis = get_kpi_config(conn)
@@ -1141,11 +1186,17 @@ def compute_kpi_values(conn: sqlite3.Connection,
                 sub.append("(t.desde_ahorro = 1 AND t.importe < 0)")
             conds.append(f"({' OR '.join(sub)})")
 
-        # Filtros dinámicos del usuario (fecha/área/categoría/tag del UI)
+        # Filtros dinámicos del usuario (fecha/área/categoría/tag/ahorro del UI)
         base = " AND ".join(conds)
         base, params = _multi_in("c.supercategoria", area, base, params)
         base, params = _multi_in("t.categoria", categoria, base, params)
         base, params = _tag_filter(tag, base, params)
+        if desde_ahorro is not None:
+            if desde_ahorro == 0:
+                base += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+            else:
+                base += " AND t.desde_ahorro = ?"
+                params.append(desde_ahorro)
 
         row = conn.execute(
             f"SELECT SUM(t.importe) FROM transactions t {join} WHERE {base}", params
@@ -1163,7 +1214,8 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
                           fecha_hasta: Optional[str] = None,
                           area: Optional[str] = None,
                           categoria: Optional[str] = None,
-                          tag: Optional[str] = None) -> list:
+                          tag: Optional[str] = None,
+                          desde_ahorro: Optional[int] = None) -> list:
     """Devuelve todas las transacciones (ingresos y gastos) que computan en un KPI."""
     kpis = get_kpi_config(conn)
     kpi = next((k for k in kpis if k["id"] == kpi_id), None)
@@ -1210,6 +1262,12 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
     where_str, params = _multi_in("c.supercategoria", area, where_str, params)
     where_str, params = _multi_in("t.categoria", categoria, where_str, params)
     where_str, params = _tag_filter(tag, where_str, params)
+    if desde_ahorro is not None:
+        if desde_ahorro == 0:
+            where_str += " AND (t.desde_ahorro IS NULL OR t.desde_ahorro = 0)"
+        else:
+            where_str += " AND t.desde_ahorro = ?"
+            params.append(desde_ahorro)
 
     sql = select + " WHERE " + where_str + " ORDER BY t.fecha DESC"
     rows = conn.execute(sql, params).fetchall()

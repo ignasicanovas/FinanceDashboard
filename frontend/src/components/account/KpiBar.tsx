@@ -10,10 +10,11 @@ interface KpiBarProps {
   area?: string
   categoria?: string
   tag?: string
+  desdeAhorro?: number
   onDrilldown?: (target: DrilldownTarget) => void
 }
 
-export default function KpiBar({ accountId, fechaDesde, fechaHasta, area, categoria, tag, onDrilldown }: KpiBarProps) {
+export default function KpiBar({ accountId, fechaDesde, fechaHasta, area, categoria, tag, desdeAhorro, onDrilldown }: KpiBarProps) {
   const { data: kpis = [] } = useKpis(accountId)
   const { data: values = {} } = useKpiValues(accountId, {
     fecha_desde: fechaDesde,
@@ -21,6 +22,7 @@ export default function KpiBar({ accountId, fechaDesde, fechaHasta, area, catego
     area,
     categoria,
     tag,
+    desde_ahorro: desdeAhorro,
   })
 
   if (kpis.length === 0) return null

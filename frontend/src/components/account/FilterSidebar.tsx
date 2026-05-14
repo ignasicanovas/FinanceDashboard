@@ -139,14 +139,24 @@ export default function FilterSidebar({ accountId, filters, onChange }: FilterSi
 
         <Separator />
 
-        {/* Gasto de cuenta de ahorro */}
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="desde_ahorro"
-            checked={filters.desde_ahorro === 1}
-            onCheckedChange={(checked) => update({ desde_ahorro: checked ? 1 : undefined })}
-          />
-          <Label htmlFor="desde_ahorro" className="text-sm cursor-pointer">Gasto de cuenta de ahorro</Label>
+        {/* Gastos de ahorro */}
+        <div className="space-y-2">
+          <Label className="text-xs text-gray-500 uppercase tracking-wide">Gastos de ahorro</Label>
+          <div className="flex rounded-lg border overflow-hidden text-xs">
+            {([
+              { label: 'Todos', value: undefined },
+              { label: 'Solo', value: 1 },
+              { label: 'Sin', value: 0 },
+            ] as { label: string; value: number | undefined }[]).map(({ label, value }) => (
+              <button
+                key={label}
+                onClick={() => update({ desde_ahorro: value })}
+                className={`flex-1 px-2 py-1 transition-colors ${filters.desde_ahorro === value ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Desde la última nómina */}

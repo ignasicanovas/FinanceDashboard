@@ -18,8 +18,10 @@ interface ChartsViewProps {
   selectedAreas?: string[]
   selectedCats?: string[]
   selectedTags?: string[]
+  desdeAhorro?: number
   onDateChange: (desde?: string, hasta?: string) => void
   onFilterChange?: (areas: string[], cats: string[], tags: string[]) => void
+  onAhorroChange?: (value: number | undefined) => void
 }
 
 function getPresetRange(preset: string): { desde?: string; hasta?: string } {
@@ -39,7 +41,7 @@ function toggle(arr: string[], val: string): string[] {
   return arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]
 }
 
-export default function ChartsView({ accountId, fechaDesde, fechaHasta, selectedAreas = [], selectedCats = [], selectedTags = [], onDateChange, onFilterChange }: ChartsViewProps) {
+export default function ChartsView({ accountId, fechaDesde, fechaHasta, selectedAreas = [], selectedCats = [], selectedTags = [], desdeAhorro, onDateChange, onFilterChange, onAhorroChange }: ChartsViewProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
 
@@ -75,12 +77,12 @@ export default function ChartsView({ accountId, fechaDesde, fechaHasta, selected
   const areaParam = selectedAreas.length > 0 ? selectedAreas.join(',') : undefined
   const catParam = selectedCats.length > 0 ? selectedCats.join(',') : undefined
   const tagParam = selectedTags.length > 0 ? selectedTags.join(',') : undefined
-  const hasFilter = selectedAreas.length > 0 || selectedCats.length > 0 || selectedTags.length > 0
+  const hasFilter = selectedAreas.length > 0 || selectedCats.length > 0 || selectedTags.length > 0 || desdeAhorro !== undefined
 
   const setSelectedAreas = (areas: string[]) => onFilterChange?.(areas, selectedCats, selectedTags)
   const setSelectedCats = (cats: string[]) => onFilterChange?.(selectedAreas, cats, selectedTags)
   const setSelectedTags = (tags: string[]) => onFilterChange?.(selectedAreas, selectedCats, tags)
-  const clearFilters = () => onFilterChange?.([], [], [])
+  const clearFilters = () => { onFilterChange?.([], [], []); onAhorroChange?.(undefined) }
 
   const resetAll = () => {
     onFilterChange?.([], [], [])
@@ -141,7 +143,7 @@ export default function ChartsView({ accountId, fechaDesde, fechaHasta, selected
           <span className="text-sm font-medium text-gray-700">Filtros de área, categoría y tags</span>
           {hasFilter && (
             <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
-              {selectedAreas.length + selectedCats.length + selectedTags.length}
+              {selectedAreas.length + selectedCats.length + selectedTags.length + (desdeAhorro !== undefined ? 1 : 0)}
             </span>
           )}
           {showFilters ? (
@@ -245,6 +247,26 @@ export default function ChartsView({ accountId, fechaDesde, fechaHasta, selected
               </div>
             )}
 
+            {/* Gastos de ahorro toggle */}
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Gastos de ahorro</p>
+              <div className="flex rounded-lg border overflow-hidden text-xs w-fit">
+                {([
+                  { label: 'Todos', value: undefined },
+                  { label: 'Solo ahorro', value: 1 },
+                  { label: 'Sin ahorro', value: 0 },
+                ] as { label: string; value: number | undefined }[]).map(({ label, value }) => (
+                  <button
+                    key={label}
+                    onClick={() => onAhorroChange?.(value)}
+                    className={`px-2.5 py-1 transition-colors ${desdeAhorro === value ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {hasFilter && (
               <div className="mt-3 pt-3 border-t flex items-center gap-2">
                 <span className="text-xs text-gray-500">
@@ -252,7 +274,9 @@ export default function ChartsView({ accountId, fechaDesde, fechaHasta, selected
                     selectedAreas.length > 0 && `${selectedAreas.length} área${selectedAreas.length > 1 ? 's' : ''}`,
                     selectedCats.length > 0 && `${selectedCats.length} categoría${selectedCats.length > 1 ? 's' : ''}`,
                     selectedTags.length > 0 && `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}`,
-                  ].filter(Boolean).join(', ')} seleccionado{selectedAreas.length + selectedCats.length + selectedTags.length > 1 ? 's' : ''}
+                    desdeAhorro === 1 && 'solo ahorro',
+                    desdeAhorro === 0 && 'sin ahorro',
+                  ].filter(Boolean).join(', ')} seleccionado{selectedAreas.length + selectedCats.length + selectedTags.length + (desdeAhorro !== undefined ? 1 : 0) > 1 ? 's' : ''}
                 </span>
                 <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 ml-auto">
                   <X className="w-3 h-3" />
@@ -264,18 +288,18 @@ export default function ChartsView({ accountId, fechaDesde, fechaHasta, selected
         )}
       </div>
 
-      <KpiBar accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} onDrilldown={setDrilldown} />
+      <KpiBar accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} desdeAhorro={desdeAhorro} onDrilldown={setDrilldown} />
 
-      <MonthlyLineChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} onDrilldown={setDrilldown} />
+      <MonthlyLineChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} desdeAhorro={desdeAhorro} onDrilldown={setDrilldown} />
 
-      <MonthlySummaryChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} onDrilldown={setDrilldown} />
+      <MonthlySummaryChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} desdeAhorro={desdeAhorro} onDrilldown={setDrilldown} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <CategoryPieChart accountId={accountId} fecha_desde={fechaDesde} fecha_hasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} onDrilldown={setDrilldown} />
-        <AreaBreakdownChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} onDrilldown={setDrilldown} />
+        <CategoryPieChart accountId={accountId} fecha_desde={fechaDesde} fecha_hasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} desdeAhorro={desdeAhorro} onDrilldown={setDrilldown} />
+        <AreaBreakdownChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} desdeAhorro={desdeAhorro} onDrilldown={setDrilldown} />
       </div>
 
-      <TopComerciosChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} onDrilldown={setDrilldown} />
+      <TopComerciosChart accountId={accountId} fechaDesde={fechaDesde} fechaHasta={fechaHasta} area={areaParam} categoria={catParam} tag={tagParam} desdeAhorro={desdeAhorro} onDrilldown={setDrilldown} />
 
       <TransactionDrilldown target={drilldown} onClose={() => setDrilldown(null)} />
     </div>

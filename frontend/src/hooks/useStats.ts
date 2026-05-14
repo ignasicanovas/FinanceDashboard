@@ -9,6 +9,7 @@ interface DateRange {
   area?: string
   categoria?: string
   tag?: string
+  desde_ahorro?: number
 }
 
 export const useKpiValues = (accountId: number, range: DateRange = {}) =>

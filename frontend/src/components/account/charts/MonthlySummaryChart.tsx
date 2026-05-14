@@ -18,11 +18,12 @@ interface Props {
   area?: string
   categoria?: string
   tag?: string
+  desdeAhorro?: number
   onDrilldown?: (target: DrilldownTarget) => void
 }
 
-export default function MonthlySummaryChart({ accountId, fechaDesde, fechaHasta, area, categoria, tag, onDrilldown }: Props) {
-  const { data = [], isLoading } = useMonthlySummary(accountId, { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, area, categoria, tag })
+export default function MonthlySummaryChart({ accountId, fechaDesde, fechaHasta, area, categoria, tag, desdeAhorro, onDrilldown }: Props) {
+  const { data = [], isLoading } = useMonthlySummary(accountId, { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, area, categoria, tag, desde_ahorro: desdeAhorro })
 
   if (isLoading) return <div className="h-64 bg-gray-50 rounded-xl animate-pulse" />
   if (!data.length) return <p className="text-sm text-gray-400 text-center py-8">Sin datos para el período seleccionado</p>

@@ -15,9 +15,10 @@ def get_kpi_values(
     area: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    values = db_module.compute_kpi_values(conn, fecha_desde, fecha_hasta, area, categoria, tag)
+    values = db_module.compute_kpi_values(conn, fecha_desde, fecha_hasta, area, categoria, tag, desde_ahorro)
     return {"values": values}
 
 
@@ -29,9 +30,10 @@ def get_monthly_summary(
     area: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_monthly_summary(conn, fecha_desde, fecha_hasta, area, categoria, tag)
+    data = db_module.get_monthly_summary(conn, fecha_desde, fecha_hasta, area, categoria, tag, desde_ahorro)
     return {"data": data}
 
 
@@ -43,9 +45,10 @@ def get_by_category(
     area: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_by_category(conn, fecha_desde, fecha_hasta, area, tag, categoria)
+    data = db_module.get_by_category(conn, fecha_desde, fecha_hasta, area, tag, categoria, desde_ahorro)
     return {"data": data}
 
 
@@ -57,9 +60,10 @@ def get_by_area(
     area: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_by_area(conn, fecha_desde, fecha_hasta, area, categoria, tag)
+    data = db_module.get_by_area(conn, fecha_desde, fecha_hasta, area, categoria, tag, desde_ahorro)
     return {"data": data}
 
 
@@ -70,9 +74,10 @@ def get_monthly_by_category(
     fecha_hasta: Optional[str] = Query(None),
     area: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_monthly_by_category(conn, fecha_desde, fecha_hasta, area, tag)
+    data = db_module.get_monthly_by_category(conn, fecha_desde, fecha_hasta, area, tag, desde_ahorro)
     return {"data": data}
 
 
@@ -83,9 +88,10 @@ def get_monthly_by_area(
     fecha_hasta: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_monthly_by_area(conn, fecha_desde, fecha_hasta, categoria, tag)
+    data = db_module.get_monthly_by_area(conn, fecha_desde, fecha_hasta, categoria, tag, desde_ahorro)
     return {"data": data}
 
 
@@ -98,7 +104,8 @@ def get_top_comercios(
     area: Optional[str] = Query(None),
     categoria: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    desde_ahorro: Optional[int] = Query(None),
 ):
     conn, _, _ = account_conn
-    data = db_module.get_top_comercios(conn, fecha_desde, fecha_hasta, limit, area, categoria, tag)
+    data = db_module.get_top_comercios(conn, fecha_desde, fecha_hasta, limit, area, categoria, tag, desde_ahorro)
     return {"data": data}
