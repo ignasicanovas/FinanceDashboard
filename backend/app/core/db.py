@@ -1138,7 +1138,7 @@ def compute_kpi_values(conn: sqlite3.Connection,
                 sub.append(f"t.categoria IN ({ph})")
                 params.extend(categorias_list)
             if kpi_desde_ahorro:
-                sub.append("t.desde_ahorro = 1")
+                sub.append("(t.desde_ahorro = 1 AND t.importe < 0)")
             conds.append(f"({' OR '.join(sub)})")
 
         # Filtros dinámicos del usuario (fecha/área/categoría/tag del UI)
@@ -1203,7 +1203,7 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
             sub.append(f"t.categoria IN ({ph})")
             params.extend(categorias_list)
         if kpi_desde_ahorro:
-            sub.append("t.desde_ahorro = 1")
+            sub.append("(t.desde_ahorro = 1 AND t.importe < 0)")
         where_parts.append(f"({' OR '.join(sub)})")
 
     where_str = " AND ".join(where_parts)
@@ -1212,6 +1212,5 @@ def get_kpi_transactions(conn: sqlite3.Connection, kpi_id: int,
     where_str, params = _tag_filter(tag, where_str, params)
 
     sql = select + " WHERE " + where_str + " ORDER BY t.fecha DESC"
-    import pandas as pd
-    df = pd.read_sql_query(sql, conn, params=params)
-    return df.to_dict(orient="records")
+    rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
